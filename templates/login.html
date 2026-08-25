@@ -11,22 +11,82 @@
       <p class="text-muted mb-0">Track checklist status, punch points and commissioning readiness.</p>
     </div>
 
-    <div id="loginAlert" class="alert alert-danger d-none" role="alert"></div>
+    <div id="authAlert" class="alert d-none" role="alert"></div>
 
-    <form id="loginForm" class="vstack gap-3">
-      <div>
-        <label for="email" class="form-label">Email</label>
-        <input id="email" name="email" type="email" class="form-control form-control-lg" autocomplete="email" required>
+    <ul class="nav nav-pills auth-tabs mb-3" id="authTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="signin-tab" data-bs-toggle="pill" data-bs-target="#signinPane" type="button" role="tab" aria-controls="signinPane" aria-selected="true">
+          Sign in
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="signup-tab" data-bs-toggle="pill" data-bs-target="#signupPane" type="button" role="tab" aria-controls="signupPane" aria-selected="false">
+          Create account
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="reset-tab" data-bs-toggle="pill" data-bs-target="#resetPane" type="button" role="tab" aria-controls="resetPane" aria-selected="false">
+          Reset
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="signinPane" role="tabpanel" aria-labelledby="signin-tab" tabindex="0">
+        <form id="loginForm" class="vstack gap-3">
+          <div>
+            <label for="loginEmail" class="form-label">Email</label>
+            <input id="loginEmail" name="email" type="email" class="form-control form-control-lg" autocomplete="email" required>
+          </div>
+          <div>
+            <label for="loginPassword" class="form-label">Password</label>
+            <input id="loginPassword" name="password" type="password" class="form-control form-control-lg" autocomplete="current-password" required>
+          </div>
+          <button id="loginButton" class="btn btn-primary btn-lg w-100" type="submit">
+            <i class="bi bi-shield-lock" aria-hidden="true"></i>
+            Sign in
+          </button>
+        </form>
       </div>
-      <div>
-        <label for="password" class="form-label">Password</label>
-        <input id="password" name="password" type="password" class="form-control form-control-lg" autocomplete="current-password" required>
+
+      <div class="tab-pane fade" id="signupPane" role="tabpanel" aria-labelledby="signup-tab" tabindex="0">
+        <form id="signupForm" class="vstack gap-3">
+          <div>
+            <label for="signupName" class="form-label">Name</label>
+            <input id="signupName" name="name" type="text" class="form-control form-control-lg" autocomplete="name" required>
+          </div>
+          <div>
+            <label for="signupEmail" class="form-label">Email</label>
+            <input id="signupEmail" name="email" type="email" class="form-control form-control-lg" autocomplete="email" required>
+          </div>
+          <div>
+            <label for="signupPassword" class="form-label">Password</label>
+            <input id="signupPassword" name="password" type="password" class="form-control form-control-lg" autocomplete="new-password" minlength="6" required>
+          </div>
+          <div>
+            <label for="signupConfirmPassword" class="form-label">Confirm password</label>
+            <input id="signupConfirmPassword" name="confirm_password" type="password" class="form-control form-control-lg" autocomplete="new-password" minlength="6" required>
+          </div>
+          <button id="signupButton" class="btn btn-primary btn-lg w-100" type="submit">
+            <i class="bi bi-person-plus" aria-hidden="true"></i>
+            Create account
+          </button>
+        </form>
       </div>
-      <button id="loginButton" class="btn btn-primary btn-lg w-100" type="submit">
-        <i class="bi bi-shield-lock" aria-hidden="true"></i>
-        Sign in
-      </button>
-    </form>
+
+      <div class="tab-pane fade" id="resetPane" role="tabpanel" aria-labelledby="reset-tab" tabindex="0">
+        <form id="resetForm" class="vstack gap-3">
+          <div>
+            <label for="resetEmail" class="form-label">Email</label>
+            <input id="resetEmail" name="email" type="email" class="form-control form-control-lg" autocomplete="email" required>
+          </div>
+          <button id="resetButton" class="btn btn-outline-primary btn-lg w-100" type="submit">
+            <i class="bi bi-envelope-check" aria-hidden="true"></i>
+            Send reset link
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

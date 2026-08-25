@@ -224,15 +224,26 @@ def create_app():
         if g.user and g.user.get("is_admin"):
             return redirect(url_for("admin_dashboard"))
         if g.user:
-            return redirect(url_for("admin_dashboard"))
+            return redirect(url_for("worker_account"))
         return redirect(url_for("login"))
 
     @app.get("/login")
     def login():
         if g.user:
-            next_url = request.args.get("next") or url_for("admin_dashboard")
+            next_url = request.args.get("next") or (
+                url_for("admin_dashboard")
+                if g.user.get("is_admin")
+                else url_for("worker_account")
+            )
             return redirect(next_url)
         return render_template("login.html", next_url=request.args.get("next", ""))
+
+    @app.get("/account")
+    @login_required
+    def worker_account():
+        if g.user.get("is_admin"):
+            return redirect(url_for("admin_dashboard"))
+        return render_template("account.html")
 
     @app.post("/session-login")
     def session_login():

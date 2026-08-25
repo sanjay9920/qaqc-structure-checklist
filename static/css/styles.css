@@ -83,6 +83,33 @@ body {
   padding: 1.5rem;
 }
 
+.auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  background: #eef3ff;
+  border: 1px solid #d5e0f5;
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.auth-tabs .nav-item {
+  min-width: 0;
+}
+
+.auth-tabs .nav-link {
+  width: 100%;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: normal;
+}
+
+.auth-tabs .nav-link.active {
+  background: var(--blue);
+}
+
 .structure-shell {
   max-width: 760px;
   margin: 0 auto;
