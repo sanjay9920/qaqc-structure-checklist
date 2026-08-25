@@ -19,43 +19,28 @@
 
   function friendlyAuthMessage(error) {
     const messages = {
-      "auth/email-already-in-use": "This email is already registered. Please sign in or reset the password.",
-      "auth/invalid-email": "Please enter a valid email address.",
-      "auth/invalid-login-credentials": "Email or password is incorrect.",
-      "auth/user-not-found": "No user found for this email.",
-      "auth/weak-password": "Password must be at least 6 characters.",
-      "auth/wrong-password": "Email or password is incorrect."
+      "Failed to fetch": "Network problem. Please check your internet connection."
     };
-    return messages[error.code] || error.message || "Request failed. Please try again.";
+    return messages[error.message] || error.message || "Request failed. Please try again.";
   }
 
-  async function createServerSession(user) {
-    const idToken = await user.getIdToken(true);
-    const response = await fetch("/session-login", {
+  async function postJson(url, data) {
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken })
+      body: JSON.stringify(data)
     });
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload.error || "Login failed.");
+      throw new Error(payload.error || "Request failed.");
     }
+    return payload;
   }
 
   function restoreButton(button, html) {
     button.disabled = false;
     button.innerHTML = html;
   }
-
-  if (!window.firebaseConfig || !window.firebaseConfig.apiKey) {
-    showAlert("Firebase web configuration is missing. Check your environment settings.");
-    [loginButton, signupButton, resetButton].forEach((button) => {
-      if (button) button.disabled = true;
-    });
-    return;
-  }
-
-  firebase.initializeApp(window.firebaseConfig);
 
   loginForm.addEventListener("submit", async function (event) {
     event.preventDefault();
@@ -67,8 +52,7 @@
     const password = document.getElementById("loginPassword").value;
 
     try {
-      const credential = await firebase.auth().signInWithEmailAndPassword(email, password);
-      await createServerSession(credential.user);
+      await postJson("/auth/login", { email, password });
       window.location.assign(window.nextUrl || "/account");
     } catch (error) {
       showAlert(friendlyAuthMessage(error));
@@ -94,11 +78,7 @@
     }
 
     try {
-      const credential = await firebase.auth().createUserWithEmailAndPassword(email, password);
-      if (name) {
-        await credential.user.updateProfile({ displayName: name });
-      }
-      await createServerSession(credential.user);
+      await postJson("/auth/signup", { name, email, password });
       window.location.assign(window.nextUrl || "/account");
     } catch (error) {
       showAlert(friendlyAuthMessage(error));
@@ -115,7 +95,7 @@
     const email = document.getElementById("resetEmail").value.trim();
 
     try {
-      await firebase.auth().sendPasswordResetEmail(email);
+      await postJson("/auth/reset", { email });
       showAlert("Password reset link sent. Please check your email.", "success");
       resetForm.reset();
     } catch (error) {

@@ -1,6 +1,9 @@
 from datetime import timedelta
+import json
 from pathlib import Path
 import time
+from urllib import error as url_error
+from urllib import request as url_request
 
 from firebase_admin import auth as firebase_auth
 from google.api_core.exceptions import ResourceExhausted
@@ -128,6 +131,73 @@ def create_app():
     def clear_dashboard_cache():
         dashboard_cache.clear()
 
+    def firebase_auth_request(action, payload):
+        if not settings.firebase_api_key:
+            raise ValueError("Firebase API key is missing.")
+
+        body = json.dumps(payload).encode("utf-8")
+        request_url = (
+            f"https://identitytoolkit.googleapis.com/v1/accounts:{action}"
+            f"?key={settings.firebase_api_key}"
+        )
+        request_obj = url_request.Request(
+            request_url,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with url_request.urlopen(request_obj, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except url_error.HTTPError as exc:
+            try:
+                payload = json.loads(exc.read().decode("utf-8"))
+                message = payload.get("error", {}).get("message", str(exc))
+            except Exception:
+                message = str(exc)
+            raise ValueError(message) from exc
+
+    def auth_error_message(error):
+        messages = {
+            "EMAIL_EXISTS": "This email is already registered. Please sign in or reset the password.",
+            "EMAIL_NOT_FOUND": "No user found for this email.",
+            "INVALID_EMAIL": "Please enter a valid email address.",
+            "INVALID_LOGIN_CREDENTIALS": "Email or password is incorrect.",
+            "INVALID_PASSWORD": "Email or password is incorrect.",
+            "MISSING_PASSWORD": "Please enter a password.",
+            "OPERATION_NOT_ALLOWED": "Email/password login is not enabled in Firebase Authentication.",
+            "TOO_MANY_ATTEMPTS_TRY_LATER": "Too many attempts. Please try again later.",
+            "WEAK_PASSWORD : Password should be at least 6 characters": "Password must be at least 6 characters.",
+        }
+        return messages.get(str(error), "Request failed. Please try again.")
+
+    def create_session_response(id_token):
+        expires_in = timedelta(days=5)
+        initialize_firebase()
+        firebase_auth.verify_id_token(id_token, clock_skew_seconds=10)
+        try:
+            session_cookie = firebase_auth.create_session_cookie(
+                id_token, expires_in=expires_in
+            )
+        except Exception as exc:
+            if "Token used too early" not in str(exc):
+                raise
+            time.sleep(3)
+            session_cookie = firebase_auth.create_session_cookie(
+                id_token, expires_in=expires_in
+            )
+
+        response = jsonify({"ok": True})
+        response.set_cookie(
+            "firebase_session",
+            session_cookie,
+            max_age=int(expires_in.total_seconds()),
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite="Lax",
+        )
+        return response
+
     def build_dashboard_payload(search, project_id, block_id):
         cache_key = (
             normalize_structure_id(search) if search else "",
@@ -245,6 +315,72 @@ def create_app():
             return redirect(url_for("admin_dashboard"))
         return render_template("account.html")
 
+    @app.post("/auth/login")
+    def auth_login():
+        payload = request.get_json(silent=True) or {}
+        email = (payload.get("email") or "").strip()
+        password = payload.get("password") or ""
+        if not email or not password:
+            return jsonify({"error": "Please enter email and password."}), 400
+
+        try:
+            result = firebase_auth_request(
+                "signInWithPassword",
+                {"email": email, "password": password, "returnSecureToken": True},
+            )
+            return create_session_response(result["idToken"])
+        except Exception as exc:
+            return jsonify({"error": auth_error_message(exc)}), 401
+
+    @app.post("/auth/signup")
+    def auth_signup():
+        payload = request.get_json(silent=True) or {}
+        name = (payload.get("name") or "").strip()
+        email = (payload.get("email") or "").strip().lower()
+        password = payload.get("password") or ""
+        if not name or not email or not password:
+            return jsonify({"error": "Please enter name, email and password."}), 400
+        if len(password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters."}), 400
+
+        try:
+            initialize_firebase()
+            user = firebase_auth.create_user(
+                email=email,
+                password=password,
+                display_name=name,
+                disabled=False,
+            )
+            firebase_auth.set_custom_user_claims(
+                user.uid, {"admin": False, "role": "worker"}
+            )
+            result = firebase_auth_request(
+                "signInWithPassword",
+                {"email": email, "password": password, "returnSecureToken": True},
+            )
+            return create_session_response(result["idToken"])
+        except firebase_auth.EmailAlreadyExistsError:
+            return jsonify({"error": auth_error_message("EMAIL_EXISTS")}), 409
+        except Exception as exc:
+            return jsonify({"error": auth_error_message(exc)}), 400
+
+    @app.post("/auth/reset")
+    def auth_reset():
+        payload = request.get_json(silent=True) or {}
+        email = (payload.get("email") or "").strip()
+        if not email:
+            return jsonify({"error": "Please enter email."}), 400
+
+        try:
+            firebase_auth_request(
+                "sendOobCode",
+                {"requestType": "PASSWORD_RESET", "email": email},
+            )
+        except Exception as exc:
+            if str(exc) not in {"EMAIL_NOT_FOUND", "INVALID_EMAIL"}:
+                return jsonify({"error": auth_error_message(exc)}), 400
+        return jsonify({"ok": True})
+
     @app.post("/session-login")
     def session_login():
         payload = request.get_json(silent=True) or {}
@@ -252,34 +388,10 @@ def create_app():
         if not id_token:
             return jsonify({"error": "Missing Firebase ID token."}), 400
 
-        expires_in = timedelta(days=5)
         try:
-            initialize_firebase()
-            firebase_auth.verify_id_token(id_token, clock_skew_seconds=10)
-            try:
-                session_cookie = firebase_auth.create_session_cookie(
-                    id_token, expires_in=expires_in
-                )
-            except Exception as exc:
-                if "Token used too early" not in str(exc):
-                    raise
-                time.sleep(3)
-                session_cookie = firebase_auth.create_session_cookie(
-                    id_token, expires_in=expires_in
-                )
+            return create_session_response(id_token)
         except Exception as exc:
             return jsonify({"error": f"Could not create session: {exc}"}), 401
-
-        response = jsonify({"ok": True})
-        response.set_cookie(
-            "firebase_session",
-            session_cookie,
-            max_age=int(expires_in.total_seconds()),
-            httponly=True,
-            secure=settings.cookie_secure,
-            samesite="Lax",
-        )
-        return response
 
     @app.get("/logout")
     def logout():
