@@ -1,0 +1,53 @@
+from functools import wraps
+from urllib.parse import quote
+
+from firebase_admin import auth as firebase_auth
+from flask import g, jsonify, redirect, request, url_for
+
+from .config import settings
+from .firebase_client import initialize_firebase
+
+
+def current_user():
+    session_cookie = request.cookies.get("firebase_session")
+    if not session_cookie:
+        return None
+
+    try:
+        initialize_firebase()
+        claims = firebase_auth.verify_session_cookie(
+            session_cookie,
+            check_revoked=False,
+            clock_skew_seconds=10,
+        )
+    except Exception:
+        return None
+
+    email = (claims.get("email") or "").lower()
+    claims["email"] = email
+    claims["is_admin"] = bool(claims.get("admin")) or email in settings.admin_emails
+    return claims
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not g.get("user"):
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Login required."}), 401
+            next_url = quote(request.full_path if request.query_string else request.path)
+            return redirect(f"{url_for('login')}?next={next_url}")
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def admin_required(view):
+    @wraps(view)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if not g.user.get("is_admin"):
+            return ("Admin access required.", 403)
+        return view(*args, **kwargs)
+
+    return wrapped

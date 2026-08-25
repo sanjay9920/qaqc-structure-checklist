@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}QA/QC Department - Update History{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div>
+    <p class="eyebrow mb-1">QA/QC Department App</p>
+    <h1 class="h3 mb-0">Update history</h1>
+    <p class="dashboard-tagline mb-0">Audit trail for every checklist status and remark update.</p>
+  </div>
+  <a class="btn btn-outline-dark" href="{{ url_for('admin_export_history_csv') }}">
+    <i class="bi bi-filetype-csv" aria-hidden="true"></i>
+    History CSV
+  </a>
+</div>
+
+<form class="search-row" action="{{ url_for('admin_history') }}" method="get">
+  <div class="row g-2">
+    <div class="col-12 col-md-4">
+      <input name="project" class="form-control" value="{{ project }}" placeholder="Project">
+    </div>
+    <div class="col-12 col-md-3">
+      <input name="block" class="form-control" value="{{ block }}" placeholder="Block">
+    </div>
+    <div class="col-12 col-md-5">
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+        <input name="structure_id" class="form-control" value="{{ structure_id }}" placeholder="Structure ID">
+        <button class="btn btn-outline-dark" type="submit">Filter</button>
+      </div>
+    </div>
+  </div>
+</form>
+
+<div class="table-responsive admin-table">
+  <table class="table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Block</th>
+        <th>Structure ID</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Checklist item</th>
+        <th>Change</th>
+        <th>Remark</th>
+        <th>Updated by</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in history %}
+        <tr>
+          <td>{{ row.project or "-" }}</td>
+          <td>{{ row.block or "-" }}</td>
+          <td class="fw-semibold">{{ row.structure_id }}</td>
+          <td>{{ row.updated_date }}</td>
+          <td>{{ row.updated_time }}</td>
+          <td>{{ row.item_label }}</td>
+          <td>
+            {% if row.change_type in ["remark", "final_remark"] %}
+              Remark updated
+            {% else %}
+              {{ row.previous_status | status_label }} to {{ row.new_status | status_label }}
+            {% endif %}
+          </td>
+          <td>{{ row.new_remark or "" }}</td>
+          <td>{{ row.updated_by }}</td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="9" class="text-center text-muted py-4">No history found.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

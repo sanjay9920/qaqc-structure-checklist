@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}QA/QC Record - {{ structure.structure_id }}{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div>
+    <p class="eyebrow mb-1">QA/QC Department Record</p>
+    <p class="dashboard-scope mb-1">
+      {% if structure.project and structure.block %}
+        {{ structure.project_display_name or (structure.project | scope_name) }} / {{ structure.block | block_label }}
+      {% elif structure.project %}
+        {{ structure.project_display_name or (structure.project | scope_name) }}
+      {% elif structure.block %}
+        {{ structure.block | block_label }}
+      {% else %}
+        Structure
+      {% endif %}
+    </p>
+    <h1 class="h3 mb-0">{{ structure.structure_id }}</h1>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-dark" href="{{ url_for('structure_page', structure_id=structure.structure_id) }}">
+      <i class="bi bi-phone" aria-hidden="true"></i>
+      Open page
+    </a>
+    <a class="btn btn-primary" href="{{ url_for('admin_structure_qr', structure_id=structure.structure_id) }}">
+      <i class="bi bi-download" aria-hidden="true"></i>
+      QR PNG
+    </a>
+  </div>
+</div>
+
+<section class="detail-grid">
+  <div class="qr-panel">
+    <img src="{{ url_for('admin_structure_qr', structure_id=structure.structure_id) }}" alt="QR code for {{ structure.structure_id }}">
+    <code>{{ base_url }}/structure/{{ structure.structure_id }}</code>
+  </div>
+  <div class="stat-grid compact">
+    <div class="stat-tile">
+      <span>Completed</span>
+      <strong>{{ structure.counts.completed }} / {{ structure.counts.total }}</strong>
+    </div>
+    <div class="stat-tile">
+      <span>Pending</span>
+      <strong>{{ structure.counts.pending }} / {{ structure.counts.total }}</strong>
+    </div>
+    <div class="stat-tile">
+      <span>Progress</span>
+      <strong>{{ structure.counts.progress }}%</strong>
+    </div>
+  </div>
+</section>
+
+<div class="table-responsive admin-table mt-3">
+  <table class="table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Checklist item</th>
+        <th>Status</th>
+        <th>Remark</th>
+        <th>Updated by</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in structure.checklist %}
+        <tr>
+          <td>{{ item.label }}</td>
+          <td><span class="badge {{ item.status | status_badge }}">{{ item.status | status_label }}</span></td>
+          <td>{{ item.remark or "" }}</td>
+          <td>{{ item.updated_by or "" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<section class="final-remark-panel">
+  <span class="remark-label">Final Remark</span>
+  <p class="mb-1">{{ structure.final_remark or "No final remark saved" }}</p>
+  <p class="checklist-meta mb-0">
+    {% if structure.final_remark_updated_by %}
+      Final remark by {{ structure.final_remark_updated_by }}
+    {% endif %}
+  </p>
+</section>
+
+<div class="section-title-row">
+  <h2 class="h5 mb-0">Recent history</h2>
+  <a class="btn btn-sm btn-outline-dark" href="{{ url_for('admin_history', structure_id=structure.structure_id) }}">
+    <i class="bi bi-clock-history" aria-hidden="true"></i>
+    Full history
+  </a>
+</div>
+
+<div class="table-responsive admin-table">
+  <table class="table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Item</th>
+        <th>Change</th>
+        <th>Updated by</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in history %}
+        <tr>
+          <td>{{ row.updated_date }}</td>
+          <td>{{ row.updated_time }}</td>
+          <td>{{ row.item_label }}</td>
+          <td>
+            {% if row.change_type in ["remark", "final_remark"] %}
+              Remark updated
+            {% else %}
+              {{ row.previous_status | status_label }} to {{ row.new_status | status_label }}
+            {% endif %}
+          </td>
+          <td>{{ row.updated_by }}</td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">No changes recorded.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

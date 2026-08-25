@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Firebase Quota Exceeded{% endblock %}
+
+{% block content %}
+<div class="empty-state quota-state">
+  <p class="eyebrow mb-2">QA/QC Department App</p>
+  <h1 class="h4 mb-2">Firebase quota exceeded</h1>
+  <p class="text-muted mb-3">
+    Firestore free quota khatam ho gaya hai, isliye dashboard data abhi load nahi ho pa raha.
+  </p>
+  <div class="quota-actions">
+    <a class="btn btn-primary" href="{{ url_for('admin_dashboard') }}">
+      <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+      Try Again
+    </a>
+    <a class="btn btn-outline-dark" href="{{ url_for('logout') }}">
+      <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+      Logout
+    </a>
+  </div>
+  <p class="dashboard-tagline mt-3 mb-0">
+    Wait for quota reset, enable Firebase billing, or connect another Firebase project.
+  </p>
+</div>
+{% endblock %}

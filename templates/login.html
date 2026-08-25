@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Login - QA/QC Department App{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-panel">
+    <div class="mb-4">
+      <p class="eyebrow mb-2">QA/QC Department App</p>
+      <h1 class="h3 mb-2">Structure inspection login</h1>
+      <p class="text-muted mb-0">Track checklist status, punch points and commissioning readiness.</p>
+    </div>
+
+    <div id="loginAlert" class="alert alert-danger d-none" role="alert"></div>
+
+    <form id="loginForm" class="vstack gap-3">
+      <div>
+        <label for="email" class="form-label">Email</label>
+        <input id="email" name="email" type="email" class="form-control form-control-lg" autocomplete="email" required>
+      </div>
+      <div>
+        <label for="password" class="form-label">Password</label>
+        <input id="password" name="password" type="password" class="form-control form-control-lg" autocomplete="current-password" required>
+      </div>
+      <button id="loginButton" class="btn btn-primary btn-lg w-100" type="submit">
+        <i class="bi bi-shield-lock" aria-hidden="true"></i>
+        Sign in
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.firebaseConfig = {{ firebase_web_config | tojson }};
+  window.nextUrl = {{ next_url | tojson }};
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+{% endblock %}

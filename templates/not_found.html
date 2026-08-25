@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Structure Not Found{% endblock %}
+
+{% block content %}
+<div class="empty-state">
+  <h1 class="h4">Structure {{ structure_id }} was not found.</h1>
+  {% if current_user and current_user.is_admin %}
+    <a class="btn btn-primary mt-3" href="{{ url_for('admin_dashboard') }}">
+      <i class="bi bi-plus-circle" aria-hidden="true"></i>
+      Create structure
+    </a>
+  {% endif %}
+</div>
+{% endblock %}

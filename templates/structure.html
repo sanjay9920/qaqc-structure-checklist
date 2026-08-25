@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}QA/QC Checklist - {{ structure.structure_id }}{% endblock %}
+
+{% block content %}
+<div class="structure-shell">
+  <section class="structure-header">
+    <div>
+      <p class="eyebrow mb-1">QA/QC Department Checklist</p>
+      <p class="dashboard-scope mb-1">
+        {% if structure.project and structure.block %}
+          {{ structure.project_display_name or (structure.project | scope_name) }} / {{ structure.block | block_label }}
+        {% elif structure.project %}
+          {{ structure.project_display_name or (structure.project | scope_name) }}
+        {% elif structure.block %}
+          {{ structure.block | block_label }}
+        {% else %}
+          Structure ID
+        {% endif %}
+      </p>
+      <h1 class="structure-title mb-0">{{ structure.structure_id }}</h1>
+    </div>
+    <div class="structure-header-actions">
+      {% if current_user and current_user.is_admin and structure.project and structure.block %}
+        <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=structure.project, block=structure.block, selected_structure=structure.structure_number) }}">
+          <i class="bi bi-speedometer2" aria-hidden="true"></i>
+          Block {{ structure.block | block_label }}
+        </a>
+      {% endif %}
+      <div class="progress-ring" aria-label="Progress">
+        <span id="progressValue">{{ structure.counts.progress }}%</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="structure-info-grid" aria-label="Structure information">
+    <div class="structure-info-tile">
+      <span>Project Name</span>
+      <strong>{{ structure.project_display_name or (structure.project | scope_name) if structure.project else "Not set" }}</strong>
+    </div>
+    <div class="structure-info-tile">
+      <span>Block</span>
+      <strong>{{ structure.block | block_label if structure.block else "Not set" }}</strong>
+    </div>
+    <div class="structure-info-tile">
+      <span>Structure ID</span>
+      <strong>{{ structure.structure_id }}</strong>
+    </div>
+  </section>
+
+  <section class="summary-grid" aria-label="Checklist summary">
+    <div class="summary-tile">
+      <span class="summary-label">Completed</span>
+      <strong><span id="completedCount">{{ structure.counts.completed }}</span> / <span id="totalCountA">{{ structure.counts.total }}</span></strong>
+    </div>
+    <div class="summary-tile">
+      <span class="summary-label">Pending</span>
+      <strong><span id="pendingCount">{{ structure.counts.pending }}</span> / <span id="totalCountB">{{ structure.counts.total }}</span></strong>
+    </div>
+    <div class="summary-tile">
+      <span class="summary-label">N/A</span>
+      <strong><span id="naCount">{{ structure.counts.na }}</span></strong>
+    </div>
+  </section>
+
+  <div class="progress mb-3" role="progressbar" aria-valuenow="{{ structure.counts.progress }}" aria-valuemin="0" aria-valuemax="100">
+    <div id="progressBar" class="progress-bar" style="width: {{ structure.counts.progress }}%"></div>
+  </div>
+
+  <section id="checklistItems" class="checklist-list">
+    {% for item in structure.checklist %}
+      <article class="checklist-item" data-item-id="{{ item.item_id }}">
+        <div class="checklist-item-main">
+          <h2 class="checklist-label">{{ item.label }}</h2>
+          <span class="badge {{ item.status | status_badge }} status-badge">{{ item.status | status_label }}</span>
+        </div>
+        <div class="status-control">
+          <label class="status-select-label" for="status_{{ item.item_id }}">Select status</label>
+          <select id="status_{{ item.item_id }}" class="form-select status-select" aria-label="{{ item.label }} status">
+            {% for value, label in status_options.items() %}
+              <option value="{{ value }}" {% if item.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="remark-control">
+          <label class="remark-label" for="remark_{{ item.item_id }}">Remark</label>
+          <textarea
+            id="remark_{{ item.item_id }}"
+            class="form-control remark-input"
+            rows="2"
+            maxlength="1000"
+            placeholder="Type remark"
+          >{{ item.remark }}</textarea>
+          <div class="remark-actions">
+            <button type="button" class="btn btn-sm btn-outline-dark save-remark">
+              <i class="bi bi-save" aria-hidden="true"></i>
+              Save
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary clear-remark">
+              <i class="bi bi-x-circle" aria-hidden="true"></i>
+              Clear
+            </button>
+          </div>
+        </div>
+        <div class="checklist-meta">
+          <span class="updated-by">{{ item.updated_by or "Not updated" }}</span>
+          <span class="remark-updated-by">
+            {% if item.remark_updated_by %}Remark by {{ item.remark_updated_by }}{% endif %}
+          </span>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="final-remark-panel" aria-label="Final remark">
+    <label class="remark-label" for="finalRemark">Final Remark</label>
+    <textarea
+      id="finalRemark"
+      class="form-control final-remark-input"
+      rows="3"
+      maxlength="2000"
+      placeholder="Type final remark"
+    >{{ structure.final_remark }}</textarea>
+    <div class="remark-actions">
+      <button id="saveFinalRemark" type="button" class="btn btn-sm btn-primary">
+        <i class="bi bi-save" aria-hidden="true"></i>
+        Save Final Remark
+      </button>
+      <button id="clearFinalRemark" type="button" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-x-circle" aria-hidden="true"></i>
+        Clear
+      </button>
+    </div>
+    <p id="finalRemarkMeta" class="checklist-meta mb-0">
+      {% if structure.final_remark_updated_by %}
+        Final remark by {{ structure.final_remark_updated_by }}
+      {% else %}
+        No final remark saved
+      {% endif %}
+    </p>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.structureId = {{ structure.structure_id | tojson }};
+  window.statusLabels = {{ status_options | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/structure.js') }}"></script>
+{% endblock %}

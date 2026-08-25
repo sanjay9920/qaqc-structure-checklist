@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}QA/QC Department - Checklist Items{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div>
+    <p class="eyebrow mb-1">QA/QC Department App</p>
+    <h1 class="h3 mb-0">Checklist items</h1>
+    <p class="dashboard-tagline mb-0">Standard inspection points used for structure quality checks.</p>
+  </div>
+</div>
+
+<form class="admin-panel mb-3" action="{{ url_for('admin_checklist_items') }}" method="post">
+  <label for="label" class="form-label">New checklist item</label>
+  <div class="input-group">
+    <input id="label" name="label" class="form-control" placeholder="Example: Foundation grouting completed" required>
+    <button class="btn btn-primary" type="submit">
+      <i class="bi bi-plus-circle" aria-hidden="true"></i>
+      Add
+    </button>
+  </div>
+</form>
+
+<div class="table-responsive admin-table">
+  <table class="table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Order</th>
+        <th>Checklist item</th>
+        <th>Status</th>
+        <th class="text-end">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr class="{% if not item.active %}text-muted{% endif %}">
+          <td>{{ item.order }}</td>
+          <td>
+            <form action="{{ url_for('admin_rename_checklist_item', item_id=item.item_id) }}" method="post" class="input-group">
+              <input name="label" class="form-control" value="{{ item.label }}" maxlength="160" required>
+              <button class="btn btn-outline-dark" type="submit">
+                <i class="bi bi-save" aria-hidden="true"></i>
+                Save
+              </button>
+            </form>
+          </td>
+          <td>
+            {% if item.active %}
+              <span class="badge text-bg-success">Active</span>
+            {% else %}
+              <span class="badge text-bg-secondary">Removed</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if item.active %}
+              <form action="{{ url_for('admin_remove_checklist_item', item_id=item.item_id) }}" method="post" class="d-inline">
+                <button class="btn btn-sm btn-outline-danger" type="submit">
+                  <i class="bi bi-trash" aria-hidden="true"></i>
+                  Remove
+                </button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
