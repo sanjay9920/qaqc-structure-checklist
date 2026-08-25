@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}QA/QC Department - Dashboard{% endblock %}
+{% block title %}Quality Department - Dashboard{% endblock %}
 
 {% block content %}
 <div class="admin-header">
   <div>
-    <p class="eyebrow mb-1">QA/QC Department App</p>
+    <p class="eyebrow mb-1">Quality Department App</p>
     <h1 class="h3 mb-0" id="dashboardTitle">
       {% if project %}
         {{ project_display_name }} Dashboard
@@ -22,7 +22,7 @@
         Create or select a project
       {% endif %}
     </p>
-    <p class="dashboard-tagline mb-0">Structure inspection, punch point and commissioning checklist status.</p>
+    <p class="dashboard-tagline mb-0">Professional structure inspection, punch point and commissioning checklist status.</p>
   </div>
   {% if project %}
     <div class="d-flex flex-wrap gap-2">
