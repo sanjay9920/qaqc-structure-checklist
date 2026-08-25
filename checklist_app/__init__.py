@@ -370,6 +370,11 @@ def create_app():
             return redirect(url_for("admin_dashboard"))
         return render_template("account.html")
 
+    @app.get("/scan")
+    @login_required
+    def scan_qr():
+        return render_template("scanner.html")
+
     @app.get("/service-worker.js")
     def service_worker():
         response = app.send_static_file("service-worker.js")

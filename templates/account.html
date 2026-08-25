@@ -8,6 +8,10 @@
     <p class="eyebrow mb-2">Quality Department App</p>
     <h1 class="h3 mb-2">Worker account ready</h1>
     <p class="text-muted mb-4">Scan a structure QR code to open its checklist.</p>
+    <a class="btn btn-primary w-100 mb-2" href="{{ url_for('scan_qr') }}">
+      <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+      Scan QR
+    </a>
     <a class="btn btn-outline-dark w-100" href="{{ url_for('logout') }}">
       <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
       Logout

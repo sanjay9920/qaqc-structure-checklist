@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Scan QR - Quality Department{% endblock %}
+
+{% block content %}
+<div class="scanner-shell">
+  <section class="scanner-header">
+    <p class="eyebrow mb-1">Quality Department App</p>
+    <h1 class="h3 mb-2">Scan Structure QR</h1>
+    <p class="dashboard-tagline mb-0">Camera se QR scan karein. Scan complete hote hi checklist open ho jayegi.</p>
+  </section>
+
+  <section class="scanner-panel">
+    <div id="qrReader" class="qr-reader"></div>
+    <div class="scanner-actions">
+      <button id="startScanner" class="btn btn-primary" type="button">
+        <i class="bi bi-camera-video" aria-hidden="true"></i>
+        Start Camera
+      </button>
+      <button id="stopScanner" class="btn btn-outline-dark" type="button" disabled>
+        <i class="bi bi-stop-circle" aria-hidden="true"></i>
+        Stop
+      </button>
+    </div>
+    <p id="scannerStatus" class="scanner-status mb-0">Start Camera दबाकर QR code scan karein.</p>
+  </section>
+
+  <section class="scanner-panel">
+    <h2 class="h5 mb-2">Manual open</h2>
+    <p class="dashboard-scope mb-3">Camera permission na mile to Structure ID manually enter karein.</p>
+    <form id="manualStructureForm" class="input-group">
+      <input id="manualStructureId" class="form-control" placeholder="Structure ID / STR-0001" autocomplete="off">
+      <button class="btn btn-outline-dark" type="submit">Open</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+{% endblock %}

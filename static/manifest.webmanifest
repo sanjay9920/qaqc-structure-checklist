@@ -41,6 +41,18 @@
           "type": "image/png"
         }
       ]
+    },
+    {
+      "name": "Scan Structure QR",
+      "short_name": "Scan QR",
+      "url": "/scan",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

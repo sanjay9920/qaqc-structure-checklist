@@ -378,6 +378,52 @@ body {
   margin-bottom: 1rem;
 }
 
+.scanner-shell {
+  width: min(100%, 720px);
+  margin: 0 auto;
+}
+
+.scanner-header {
+  margin-bottom: 1rem;
+}
+
+.scanner-panel {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(23, 32, 51, 0.06);
+}
+
+.qr-reader {
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0f172a;
+}
+
+.qr-reader video {
+  object-fit: cover;
+}
+
+.scanner-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.scanner-actions .btn {
+  min-height: 46px;
+}
+
+.scanner-status {
+  margin-top: 0.75rem;
+  font-weight: 700;
+}
+
 .admin-table {
   overflow: hidden;
 }
@@ -512,5 +558,9 @@ body {
 
   .status-select {
     min-height: 48px;
+  }
+
+  .scanner-actions {
+    grid-template-columns: 1fr;
   }
 }

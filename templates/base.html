@@ -33,6 +33,10 @@
           </button>
           <div class="collapse navbar-collapse" id="mainNav">
             <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+              <a class="nav-link" href="{{ url_for('scan_qr') }}">
+                <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                Scan QR
+              </a>
               {% if current_user.is_admin %}
                 <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin</a>
                 <a class="nav-link" href="{{ url_for('admin_users') }}">Users</a>
