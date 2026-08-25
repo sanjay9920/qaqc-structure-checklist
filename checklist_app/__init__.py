@@ -324,11 +324,58 @@ def create_app():
         }
         return users, summary
 
-    def build_dashboard_payload(search, project_id, block_id):
+    def dashboard_project_records_for_user(user, project_records):
+        if user.get("is_admin") or user.get("all_projects"):
+            return project_records, None
+        allowed_ids = set(normalize_project_list(user.get("projects")))
+        return (
+            [
+                project
+                for project in project_records
+                if project["project_id"] in allowed_ids
+            ],
+            allowed_ids,
+        )
+
+    def user_can_access_project(user, project_id):
+        project_id = normalize_project(project_id)
+        if not project_id:
+            return True
+        if user.get("is_admin") or user.get("all_projects"):
+            return True
+        return project_id in set(normalize_project_list(user.get("projects")))
+
+    def dashboard_access_denied_response(project_id):
+        if request.path.startswith("/api/") or wants_json_response():
+            return jsonify({"error": "You do not have access to this project."}), 403
+        return render_template(
+            "access_denied.html",
+            structure={
+                "project": project_id,
+                "project_display_name": get_project_display_name(db(), project_id),
+            },
+        ), 403
+
+    def project_access_error(project_id):
+        if user_can_access_project(g.user, project_id):
+            return None
+        return dashboard_access_denied_response(project_id)
+
+    def require_project_access(project_id):
+        error = project_access_error(project_id)
+        if error:
+            return error
+        return None
+
+    def build_dashboard_payload(search, project_id, block_id, allowed_project_ids=None):
+        allowed_set = None
+        if allowed_project_ids is not None:
+            allowed_set = set(normalize_project_list(allowed_project_ids))
         cache_key = (
             normalize_structure_id(search) if search else "",
             project_id or "",
             block_id or "",
+            ",".join(sorted(allowed_set)) if allowed_set is not None else "__ALL__",
         )
         cached = dashboard_cache.get(cache_key)
         now = time.monotonic()
@@ -336,7 +383,11 @@ def create_app():
             return cached["payload"]
 
         database = db()
-        project_records = list_project_records(database)
+        project_records = [
+            item
+            for item in list_project_records(database)
+            if allowed_set is None or item["project_id"] in allowed_set
+        ]
         project_display_names = {
             item["project_id"]: item["display_name"] for item in project_records
         }
@@ -350,7 +401,9 @@ def create_app():
         }
         project_block_count = project_block_counts.get(project_id, 0)
         project_structures = (
-            list_structures(database, project=project_id) if project_id else []
+            list_structures(database, project=project_id)
+            if project_id and (allowed_set is None or project_id in allowed_set)
+            else []
         )
         block_structure_count = 0
         if block_id:
@@ -417,20 +470,14 @@ def create_app():
 
     @app.get("/")
     def index():
-        if g.user and g.user.get("is_admin"):
-            return redirect(url_for("admin_dashboard"))
         if g.user:
-            return redirect(url_for("worker_account"))
+            return redirect(url_for("admin_dashboard"))
         return redirect(url_for("login"))
 
     @app.get("/login")
     def login():
         if g.user:
-            next_url = request.args.get("next") or (
-                url_for("admin_dashboard")
-                if g.user.get("is_admin")
-                else url_for("worker_account")
-            )
+            next_url = request.args.get("next") or url_for("admin_dashboard")
             return redirect(next_url)
         return render_template("login.html", next_url=request.args.get("next", ""))
 
@@ -774,13 +821,25 @@ def create_app():
         return redirect(url_for("admin_users"))
 
     @app.get("/admin")
-    @admin_required
+    @login_required
     def admin_dashboard():
         search = request.args.get("q", "").strip()
         project = request.args.get("project", "").strip()
         block = request.args.get("block", "").strip()
         project_id, block_id = normalize_scope(project, block)
-        payload = build_dashboard_payload(search, project_id, block_id)
+        project_records, allowed_project_ids = dashboard_project_records_for_user(
+            g.user, list_project_records(db())
+        )
+        if project_id and not user_can_access_project(g.user, project_id):
+            return dashboard_access_denied_response(project_id)
+        if not project_id and allowed_project_ids is not None and len(project_records) == 1:
+            return redirect(
+                url_for("admin_dashboard", project=project_records[0]["project_id"])
+            )
+
+        payload = build_dashboard_payload(
+            search, project_id, block_id, allowed_project_ids=allowed_project_ids
+        )
         create_id = normalize_structure_id(request.args.get("create_id", "").strip())
         if not create_id and project_id and block_id:
             create_id = get_next_structure_id(db(), project=project_id, block=block_id)
@@ -806,6 +865,7 @@ def create_app():
             block=block_id,
             projects=payload["projects"],
             project_records=payload["project_records"],
+            user_can_manage_project=bool(project_id and user_can_access_project(g.user, project_id)),
             create_structure_id=extract_structure_number(create_id) if create_id else "",
             bulk_start=request.args.get("bulk_start"),
             bulk_end=request.args.get("bulk_end"),
@@ -815,14 +875,24 @@ def create_app():
         )
 
     @app.get("/admin/api/structures")
-    @admin_required
+    @login_required
     def admin_structures_api():
         search = request.args.get("q", "").strip()
         project_id, block_id = normalize_scope(
             request.args.get("project", "").strip(),
             request.args.get("block", "").strip(),
         )
-        return jsonify(build_dashboard_payload(search, project_id, block_id))
+        _project_records, allowed_project_ids = dashboard_project_records_for_user(
+            g.user, list_project_records(db())
+        )
+        if project_id and not user_can_access_project(g.user, project_id):
+            response, status = dashboard_access_denied_response(project_id)
+            return response, status
+        return jsonify(
+            build_dashboard_payload(
+                search, project_id, block_id, allowed_project_ids=allowed_project_ids
+            )
+        )
 
     @app.post("/admin/projects")
     @admin_required
@@ -844,8 +914,11 @@ def create_app():
         )
 
     @app.post("/admin/projects/<project_id>/rename")
-    @admin_required
+    @login_required
     def admin_rename_project(project_id):
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         display_name = request.form.get("display_name", "").strip()
         try:
             project_data = update_project_display_name(
@@ -860,8 +933,11 @@ def create_app():
         return redirect(url_for("admin_dashboard", project=project_data["project_id"]))
 
     @app.post("/admin/projects/<project_id>/blocks")
-    @admin_required
+    @login_required
     def admin_update_project_blocks(project_id):
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         try:
             project_data = update_project_block_count(
                 db(),
@@ -878,8 +954,11 @@ def create_app():
         return redirect(url_for("admin_dashboard", project=project_data["project_id"]))
 
     @app.post("/admin/projects/<project_id>/blocks/<block_id>/structures")
-    @admin_required
+    @login_required
     def admin_update_block_structures(project_id, block_id):
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         try:
             block_data = update_project_block_structure_count(
                 db(),
@@ -906,12 +985,15 @@ def create_app():
         )
 
     @app.post("/admin/open-structure-checklist")
-    @admin_required
+    @login_required
     def admin_open_structure_checklist():
         project_id, block_id = normalize_scope(
             request.form.get("project", "").strip(),
             request.form.get("block", "").strip(),
         )
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         try:
             number = int(request.form.get("structure_number", "0"))
         except ValueError:
@@ -932,8 +1014,11 @@ def create_app():
         return redirect(url_for("structure_page", structure_id=structure["structure_id"]))
 
     @app.post("/admin/projects/<project_id>/delete")
-    @admin_required
+    @login_required
     def admin_delete_project(project_id):
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         try:
             deleted = delete_project(db(), project_id)
         except ValueError as exc:
@@ -945,11 +1030,17 @@ def create_app():
         return redirect(url_for("admin_dashboard"))
 
     @app.post("/admin/structures")
-    @admin_required
+    @login_required
     def admin_create_structure():
         project = request.form.get("project", "").strip()
         block = request.form.get("block", "").strip()
         project_id, block_id = normalize_scope(project, block)
+        if not project_id:
+            flash("Select a project first.", "danger")
+            return redirect(url_for("admin_dashboard"))
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         structure_id = request.form.get("structure_id", "").strip()
         if not structure_id:
             structure_id = get_next_structure_id(
@@ -968,8 +1059,11 @@ def create_app():
         return redirect(url_for("admin_structure_detail", structure_id=structure["structure_id"]))
 
     @app.post("/admin/structures/<structure_id>/delete")
-    @admin_required
+    @login_required
     def admin_delete_structure(structure_id):
+        structure, error_response, status = load_allowed_structure(structure_id)
+        if error_response:
+            return error_response, status
         deleted = delete_structure(db(), structure_id)
         if not deleted:
             if wants_json_response():
@@ -995,11 +1089,17 @@ def create_app():
         )
 
     @app.post("/admin/structures/bulk")
-    @admin_required
+    @login_required
     def admin_create_bulk():
         project = request.form.get("project", "").strip()
         block = request.form.get("block", "").strip()
         project_id, block_id = normalize_scope(project, block)
+        if not project_id:
+            flash("Select a project first.", "danger")
+            return redirect(url_for("admin_dashboard"))
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         try:
             start = int(request.form.get("start_number", "1"))
             end = int(request.form.get("end_number", "1"))
@@ -1036,11 +1136,11 @@ def create_app():
         )
 
     @app.get("/admin/structures/<structure_id>")
-    @admin_required
+    @login_required
     def admin_structure_detail(structure_id):
-        structure = get_structure(db(), structure_id)
-        if not structure:
-            return render_template("not_found.html", structure_id=structure_id), 404
+        structure, error_response, status = load_allowed_structure(structure_id)
+        if error_response:
+            return error_response, status
         structure["project_display_name"] = get_project_display_name(
             db(), structure.get("project")
         )
@@ -1053,8 +1153,11 @@ def create_app():
         )
 
     @app.get("/admin/structures/<structure_id>/qr.png")
-    @admin_required
+    @login_required
     def admin_structure_qr(structure_id):
+        _structure, error_response, status = load_allowed_structure(structure_id)
+        if error_response:
+            return error_response, status
         png = generate_qr_bytes(normalize_structure_id(structure_id), public_base_url())
         return send_file(
             png,
@@ -1064,15 +1167,24 @@ def create_app():
         )
 
     @app.get("/admin/qr-codes.zip")
-    @admin_required
+    @login_required
     def admin_qr_zip():
         raw_ids = request.args.get("ids", "").strip()
         if raw_ids:
             structure_ids = [normalize_structure_id(item) for item in raw_ids.split(",") if item]
+            for structure_id in structure_ids:
+                _structure, error_response, status = load_allowed_structure(structure_id)
+                if error_response:
+                    return error_response, status
         else:
             project = request.args.get("project", "").strip()
             block = request.args.get("block", "").strip()
             project_id, block_id = normalize_scope(project, block)
+            if not project_id and not (g.user.get("is_admin") or g.user.get("all_projects")):
+                return dashboard_access_denied_response(project_id)
+            access_error = require_project_access(project_id)
+            if access_error:
+                return access_error
             try:
                 start = int(request.args.get("start", "1"))
                 end = int(request.args.get("end", "1"))
@@ -1135,12 +1247,22 @@ def create_app():
         return redirect(url_for("admin_checklist_items"))
 
     @app.get("/admin/history")
-    @admin_required
+    @login_required
     def admin_history():
         structure_id = request.args.get("structure_id", "").strip()
         project = request.args.get("project", "").strip()
         block = request.args.get("block", "").strip()
         project_id, block_id = normalize_scope(project, block)
+        if structure_id:
+            _structure, error_response, status = load_allowed_structure(structure_id)
+            if error_response:
+                return error_response, status
+        elif project_id:
+            access_error = require_project_access(project_id)
+            if access_error:
+                return access_error
+        elif not (g.user.get("is_admin") or g.user.get("all_projects")):
+            return dashboard_access_denied_response(project_id)
         history = get_history(
             db(),
             structure_id=structure_id or None,
@@ -1157,12 +1279,17 @@ def create_app():
         )
 
     @app.get("/admin/export/structures.csv")
-    @admin_required
+    @login_required
     def admin_export_structures_csv():
         project_id, block_id = normalize_scope(
             request.args.get("project", "").strip(),
             request.args.get("block", "").strip(),
         )
+        if not project_id and not (g.user.get("is_admin") or g.user.get("all_projects")):
+            return dashboard_access_denied_response(project_id)
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         csv_text = export_structures_csv(db(), project=project_id, block=block_id)
         return Response(
             csv_text,
@@ -1171,12 +1298,17 @@ def create_app():
         )
 
     @app.get("/admin/export/history.csv")
-    @admin_required
+    @login_required
     def admin_export_history_csv():
         project_id, block_id = normalize_scope(
             request.args.get("project", "").strip(),
             request.args.get("block", "").strip(),
         )
+        if not project_id and not (g.user.get("is_admin") or g.user.get("all_projects")):
+            return dashboard_access_denied_response(project_id)
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         csv_text = export_history_csv(db(), project=project_id, block=block_id)
         return Response(
             csv_text,
@@ -1185,12 +1317,17 @@ def create_app():
         )
 
     @app.get("/admin/export/all.xlsx")
-    @admin_required
+    @login_required
     def admin_export_all_xlsx():
         project_id, block_id = normalize_scope(
             request.args.get("project", "").strip(),
             request.args.get("block", "").strip(),
         )
+        if not project_id and not (g.user.get("is_admin") or g.user.get("all_projects")):
+            return dashboard_access_denied_response(project_id)
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
         workbook = export_all_xlsx(db(), project=project_id, block=block_id)
         return send_file(
             workbook,

@@ -59,7 +59,7 @@
 </datalist>
 
 <section class="admin-grid">
-  {% if not project %}
+  {% if not project and current_user.is_admin %}
     <form class="admin-panel" action="{{ url_for('admin_create_project') }}" method="post">
       <h2 class="h5">Create project</h2>
       <div class="row g-2">

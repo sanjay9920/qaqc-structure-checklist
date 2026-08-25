@@ -12,7 +12,7 @@
   </p>
   {% if structure %}
     <p class="dashboard-scope mb-3">
-      Structure: {{ structure.structure_id }}
+      {% if structure.structure_id %}Structure: {{ structure.structure_id }}{% endif %}
       {% if structure.project %}<br>Project: {{ structure.project_display_name or (structure.project | scope_name) }}{% endif %}
     </p>
   {% endif %}

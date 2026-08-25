@@ -21,7 +21,7 @@
       <h1 class="structure-title mb-0">{{ structure.structure_id }}</h1>
     </div>
     <div class="structure-header-actions">
-      {% if current_user and current_user.is_admin and structure.project and structure.block %}
+      {% if current_user and structure.project and structure.block %}
         <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=structure.project, block=structure.block, selected_structure=structure.structure_number) }}">
           <i class="bi bi-speedometer2" aria-hidden="true"></i>
           Block {{ structure.block | block_label }}
