@@ -370,6 +370,13 @@ def create_app():
             return redirect(url_for("admin_dashboard"))
         return render_template("account.html")
 
+    @app.get("/service-worker.js")
+    def service_worker():
+        response = app.send_static_file("service-worker.js")
+        response.headers["Content-Type"] = "application/javascript; charset=utf-8"
+        response.headers["Service-Worker-Allowed"] = "/"
+        return response
+
     @app.post("/auth/login")
     def auth_login():
         payload = request.get_json(silent=True) or {}
