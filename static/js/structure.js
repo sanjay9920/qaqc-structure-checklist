@@ -24,8 +24,10 @@
     if (!row) return;
 
     const badge = row.querySelector(".status-badge");
-    badge.textContent = labelFor(item.status);
-    badge.className = "badge status-badge " + (statusClasses[item.status] || "text-bg-light");
+    if (badge) {
+      badge.textContent = labelFor(item.status);
+      badge.className = "badge status-badge " + (statusClasses[item.status] || "text-bg-light");
+    }
 
     const select = row.querySelector(".status-select");
     if (select) {
@@ -34,7 +36,9 @@
     }
 
     const updatedBy = row.querySelector(".updated-by");
-    updatedBy.textContent = item.updated_by || "Not updated";
+    if (updatedBy) {
+      updatedBy.textContent = item.updated_by || "Not updated";
+    }
 
     const remarkInput = row.querySelector(".remark-input");
     if (

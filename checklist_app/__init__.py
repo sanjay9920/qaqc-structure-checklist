@@ -270,6 +270,29 @@ def create_app():
             return None, response, status
         return structure, None, None
 
+    def can_edit_structure(structure):
+        return user_can_access_structure(g.get("user"), structure)
+
+    def public_structure_payload(structure, can_edit=False):
+        payload = dict(structure)
+        payload["can_edit"] = bool(can_edit)
+        if can_edit:
+            return payload
+
+        payload["updated_by"] = None
+        payload["created_by"] = None
+        payload["final_remark"] = ""
+        payload["final_remark_updated_by"] = None
+        payload["checklist"] = [
+            {
+                "item_id": item.get("item_id"),
+                "label": item.get("label"),
+                "status": item.get("status", "pending"),
+            }
+            for item in structure.get("checklist", [])
+        ]
+        return payload
+
     def build_auth_user_rows(search="", project_records=None):
         initialize_firebase()
         project_records = project_records or []
@@ -583,28 +606,29 @@ def create_app():
         return response
 
     @app.get("/structure/<structure_id>")
-    @login_required
     def structure_page(structure_id):
         structure = get_structure(db(), structure_id)
         if not structure:
             return render_template("not_found.html", structure_id=structure_id), 404
-        if not user_can_access_structure(g.user, structure):
-            return structure_access_denied_response(structure)
         structure["project_display_name"] = get_project_display_name(
             db(), structure.get("project")
         )
-        return render_template("structure.html", structure=structure)
+        return render_template(
+            "structure.html",
+            structure=structure,
+            can_edit_structure=can_edit_structure(structure),
+        )
 
     @app.get("/api/structure/<structure_id>")
-    @login_required
     def api_structure(structure_id):
-        structure, error_response, status = load_allowed_structure(structure_id)
-        if error_response:
-            return error_response, status
+        structure = get_structure(db(), structure_id)
+        if not structure:
+            return jsonify({"error": "Structure not found."}), 404
+        editable = can_edit_structure(structure)
         structure["project_display_name"] = get_project_display_name(
             db(), structure.get("project")
         )
-        return jsonify(structure)
+        return jsonify(public_structure_payload(structure, editable))
 
     @app.post("/api/structure/<structure_id>/items/<item_id>")
     @login_required

@@ -21,17 +21,34 @@
       <h1 class="structure-title mb-0">{{ structure.structure_id }}</h1>
     </div>
     <div class="structure-header-actions">
-      {% if current_user and structure.project and structure.block %}
+      {% if can_edit_structure and structure.project and structure.block %}
         <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=structure.project, block=structure.block, selected_structure=structure.structure_number) }}">
           <i class="bi bi-speedometer2" aria-hidden="true"></i>
           Block {{ structure.block | block_label }}
         </a>
+      {% elif not current_user %}
+        <a class="btn btn-primary" href="{{ url_for('login', next=request.path) }}">
+          <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+          Login to Update
+        </a>
+      {% else %}
+        <span class="readonly-pill">
+          <i class="bi bi-eye" aria-hidden="true"></i>
+          Read only
+        </span>
       {% endif %}
       <div class="progress-ring" aria-label="Progress">
         <span id="progressValue">{{ structure.counts.progress }}%</span>
       </div>
     </div>
   </section>
+
+  {% if not can_edit_structure %}
+    <section class="public-view-banner" aria-label="Public view">
+      <i class="bi bi-shield-check" aria-hidden="true"></i>
+      <span>Public read-only view. Checklist update ke liye login access required hai.</span>
+    </section>
+  {% endif %}
 
   <section class="structure-info-grid" aria-label="Structure information">
     <div class="structure-info-tile">
@@ -74,71 +91,75 @@
           <h2 class="checklist-label">{{ item.label }}</h2>
           <span class="badge {{ item.status | status_badge }} status-badge">{{ item.status | status_label }}</span>
         </div>
-        <div class="status-control">
-          <label class="status-select-label" for="status_{{ item.item_id }}">Select status</label>
-          <select id="status_{{ item.item_id }}" class="form-select status-select" aria-label="{{ item.label }} status">
-            {% for value, label in status_options.items() %}
-              <option value="{{ value }}" {% if item.status == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="remark-control">
-          <label class="remark-label" for="remark_{{ item.item_id }}">Remark</label>
-          <textarea
-            id="remark_{{ item.item_id }}"
-            class="form-control remark-input"
-            rows="2"
-            maxlength="1000"
-            placeholder="Type remark"
-          >{{ item.remark }}</textarea>
-          <div class="remark-actions">
-            <button type="button" class="btn btn-sm btn-outline-dark save-remark">
-              <i class="bi bi-save" aria-hidden="true"></i>
-              Save
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary clear-remark">
-              <i class="bi bi-x-circle" aria-hidden="true"></i>
-              Clear
-            </button>
+        {% if can_edit_structure %}
+          <div class="status-control">
+            <label class="status-select-label" for="status_{{ item.item_id }}">Select status</label>
+            <select id="status_{{ item.item_id }}" class="form-select status-select" aria-label="{{ item.label }} status">
+              {% for value, label in status_options.items() %}
+                <option value="{{ value }}" {% if item.status == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
           </div>
-        </div>
-        <div class="checklist-meta">
-          <span class="updated-by">{{ item.updated_by or "Not updated" }}</span>
-          <span class="remark-updated-by">
-            {% if item.remark_updated_by %}Remark by {{ item.remark_updated_by }}{% endif %}
-          </span>
-        </div>
+          <div class="remark-control">
+            <label class="remark-label" for="remark_{{ item.item_id }}">Remark</label>
+            <textarea
+              id="remark_{{ item.item_id }}"
+              class="form-control remark-input"
+              rows="2"
+              maxlength="1000"
+              placeholder="Type remark"
+            >{{ item.remark }}</textarea>
+            <div class="remark-actions">
+              <button type="button" class="btn btn-sm btn-outline-dark save-remark">
+                <i class="bi bi-save" aria-hidden="true"></i>
+                Save
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary clear-remark">
+                <i class="bi bi-x-circle" aria-hidden="true"></i>
+                Clear
+              </button>
+            </div>
+          </div>
+          <div class="checklist-meta">
+            <span class="updated-by">{{ item.updated_by or "Not updated" }}</span>
+            <span class="remark-updated-by">
+              {% if item.remark_updated_by %}Remark by {{ item.remark_updated_by }}{% endif %}
+            </span>
+          </div>
+        {% endif %}
       </article>
     {% endfor %}
   </section>
 
-  <section class="final-remark-panel" aria-label="Final remark">
-    <label class="remark-label" for="finalRemark">Final Remark</label>
-    <textarea
-      id="finalRemark"
-      class="form-control final-remark-input"
-      rows="3"
-      maxlength="2000"
-      placeholder="Type final remark"
-    >{{ structure.final_remark }}</textarea>
-    <div class="remark-actions">
-      <button id="saveFinalRemark" type="button" class="btn btn-sm btn-primary">
-        <i class="bi bi-save" aria-hidden="true"></i>
-        Save Final Remark
-      </button>
-      <button id="clearFinalRemark" type="button" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-x-circle" aria-hidden="true"></i>
-        Clear
-      </button>
-    </div>
-    <p id="finalRemarkMeta" class="checklist-meta mb-0">
-      {% if structure.final_remark_updated_by %}
-        Final remark by {{ structure.final_remark_updated_by }}
-      {% else %}
-        No final remark saved
-      {% endif %}
-    </p>
-  </section>
+  {% if can_edit_structure %}
+    <section class="final-remark-panel" aria-label="Final remark">
+      <label class="remark-label" for="finalRemark">Final Remark</label>
+      <textarea
+        id="finalRemark"
+        class="form-control final-remark-input"
+        rows="3"
+        maxlength="2000"
+        placeholder="Type final remark"
+      >{{ structure.final_remark }}</textarea>
+      <div class="remark-actions">
+        <button id="saveFinalRemark" type="button" class="btn btn-sm btn-primary">
+          <i class="bi bi-save" aria-hidden="true"></i>
+          Save Final Remark
+        </button>
+        <button id="clearFinalRemark" type="button" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-x-circle" aria-hidden="true"></i>
+          Clear
+        </button>
+      </div>
+      <p id="finalRemarkMeta" class="checklist-meta mb-0">
+        {% if structure.final_remark_updated_by %}
+          Final remark by {{ structure.final_remark_updated_by }}
+        {% else %}
+          No final remark saved
+        {% endif %}
+      </p>
+    </section>
+  {% endif %}
 </div>
 {% endblock %}
 
@@ -146,6 +167,7 @@
 <script>
   window.structureId = {{ structure.structure_id | tojson }};
   window.statusLabels = {{ status_options | tojson }};
+  window.canEditStructure = {{ can_edit_structure | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/structure.js') }}"></script>
 {% endblock %}
