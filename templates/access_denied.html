@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Project Access Required - Quality Department{% endblock %}
+
+{% block content %}
+<div class="empty-state">
+  <p class="eyebrow mb-2">Access required</p>
+  <h1 class="h4">Project access not assigned</h1>
+  <p class="text-muted mb-3">
+    Is structure ka checklist open karne ke liye is project ka access chahiye.
+    Admin se project access assign karwayen.
+  </p>
+  {% if structure %}
+    <p class="dashboard-scope mb-3">
+      Structure: {{ structure.structure_id }}
+      {% if structure.project %}<br>Project: {{ structure.project_display_name or (structure.project | scope_name) }}{% endif %}
+    </p>
+  {% endif %}
+  <div class="quota-actions">
+    <a class="btn btn-primary" href="{{ url_for('scan_qr') }}">
+      <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+      Scan QR
+    </a>
+    <a class="btn btn-outline-dark" href="{{ url_for('logout') }}">
+      <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+      Logout
+    </a>
+  </div>
+</div>
+{% endblock %}

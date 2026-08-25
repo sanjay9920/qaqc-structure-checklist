@@ -459,6 +459,22 @@ body {
   min-width: 210px;
 }
 
+.project-access-box {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.user-project-form {
+  min-width: 240px;
+  max-width: 320px;
+}
+
+.user-project-form select {
+  font-size: 0.84rem;
+}
+
 .qr-panel {
   padding: 1rem;
   display: grid;

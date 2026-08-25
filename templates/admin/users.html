@@ -50,6 +50,25 @@
         </select>
       </div>
       <div class="col-12">
+        <label class="form-label">Project access</label>
+        <div class="project-access-box">
+          <div class="form-check">
+            <input id="create_all_projects" name="all_projects" value="1" class="form-check-input" type="checkbox">
+            <label class="form-check-label fw-semibold" for="create_all_projects">All projects access</label>
+          </div>
+          {% if project_records %}
+            <select name="projects" class="form-select mt-2" multiple size="{{ 4 if project_records|length > 4 else (project_records|length if project_records else 1) }}">
+              {% for project_option in project_records %}
+                <option value="{{ project_option.project_id }}">{{ project_option.display_name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Worker ke liye project select karein. Admin ko automatic all access milega.</div>
+          {% else %}
+            <div class="form-text text-danger">Pehle project create karein, phir worker ko project access de sakte hain.</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-12">
         <button class="btn btn-primary w-100" type="submit">
           <i class="bi bi-person-plus" aria-hidden="true"></i>
           Create User
@@ -112,6 +131,34 @@
             {% if user.is_admin %}
               <span class="badge text-bg-primary">Admin</span>
             {% endif %}
+            {% if user.all_projects %}
+              <span class="badge text-bg-info">All projects</span>
+            {% elif not user.projects %}
+              <span class="badge text-bg-warning">No project</span>
+            {% endif %}
+            <div class="small text-muted mt-2">{{ user.access_label }}</div>
+            <form action="{{ url_for('admin_update_user_projects', uid=user.uid) }}" method="post" class="user-project-form mt-2">
+              <div class="form-check">
+                <input
+                  id="all_projects_{{ user.uid }}"
+                  name="all_projects"
+                  value="1"
+                  class="form-check-input"
+                  type="checkbox"
+                  {% if user.all_projects %}checked{% endif %}
+                  {% if user.is_admin %}disabled{% endif %}
+                >
+                <label class="form-check-label" for="all_projects_{{ user.uid }}">All projects</label>
+              </div>
+              <select name="projects" class="form-select form-select-sm mt-1" multiple size="{{ 4 if project_records|length > 4 else (project_records|length if project_records else 1) }}" {% if user.is_admin or not project_records %}disabled{% endif %}>
+                {% for project_option in project_records %}
+                  <option value="{{ project_option.project_id }}" {% if project_option.project_id in user.projects %}selected{% endif %}>{{ project_option.display_name }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-sm btn-outline-dark w-100 mt-1" type="submit" {% if user.is_admin %}disabled{% endif %}>
+                Save Project Access
+              </button>
+            </form>
           </td>
           <td>{{ user.created_at }}</td>
           <td>{{ user.last_sign_in }}</td>

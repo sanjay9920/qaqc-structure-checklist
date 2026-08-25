@@ -215,8 +215,67 @@ def create_app():
         email = (user_record.email or "").lower()
         return bool(claims.get("admin")) or email in settings.admin_emails
 
-    def build_auth_user_rows(search=""):
+    def normalize_project_list(projects):
+        normalized = []
+        for project in projects or []:
+            project_id = normalize_project(str(project))
+            if project_id and project_id not in normalized:
+                normalized.append(project_id)
+        return normalized
+
+    def user_claim_payload(is_admin, all_projects=False, projects=None):
+        project_ids = normalize_project_list(projects)
+        all_access = bool(all_projects) or is_admin
+        return {
+            "admin": bool(is_admin),
+            "role": "admin" if is_admin else "worker",
+            "all_projects": all_access,
+            "projects": [] if all_access else project_ids,
+        }
+
+    def project_access_from_form():
+        return (
+            request.form.get("all_projects") == "1",
+            normalize_project_list(request.form.getlist("projects")),
+        )
+
+    def user_project_access(user_record):
+        claims = user_record.custom_claims or {}
+        is_admin = user_is_admin(user_record)
+        all_projects = bool(claims.get("all_projects")) or is_admin
+        projects = [] if all_projects else normalize_project_list(claims.get("projects"))
+        return all_projects, projects
+
+    def user_can_access_structure(user, structure):
+        if not user:
+            return False
+        if user.get("is_admin") or user.get("all_projects"):
+            return True
+        project_id = normalize_project(structure.get("project") or "")
+        if not project_id:
+            return False
+        return project_id in set(normalize_project_list(user.get("projects")))
+
+    def structure_access_denied_response(structure=None):
+        if request.path.startswith("/api/") or wants_json_response():
+            return jsonify({"error": "You do not have access to this project."}), 403
+        return render_template("access_denied.html", structure=structure), 403
+
+    def load_allowed_structure(structure_id):
+        structure = get_structure(db(), structure_id)
+        if not structure:
+            return None, jsonify({"error": "Structure not found."}), 404
+        if not user_can_access_structure(g.user, structure):
+            response, status = structure_access_denied_response(structure)
+            return None, response, status
+        return structure, None, None
+
+    def build_auth_user_rows(search="", project_records=None):
         initialize_firebase()
+        project_records = project_records or []
+        project_display_names = {
+            item["project_id"]: item["display_name"] for item in project_records
+        }
         query = (search or "").strip().lower()
         users = []
         for user in firebase_auth.list_users().iterate_all():
@@ -227,6 +286,12 @@ def create_app():
             if query and query not in haystack:
                 continue
             metadata = user.user_metadata
+            is_admin = user_is_admin(user)
+            all_projects, projects = user_project_access(user)
+            project_labels = [
+                project_display_names.get(project_id, display_project_name(project_id))
+                for project_id in projects
+            ]
             users.append(
                 {
                     "uid": user.uid,
@@ -234,8 +299,14 @@ def create_app():
                     "display_name": display_name,
                     "disabled": bool(user.disabled),
                     "email_verified": bool(user.email_verified),
-                    "is_admin": user_is_admin(user),
-                    "role": claims.get("role") or ("admin" if user_is_admin(user) else "worker"),
+                    "is_admin": is_admin,
+                    "role": claims.get("role") or ("admin" if is_admin else "worker"),
+                    "all_projects": all_projects,
+                    "projects": projects,
+                    "project_labels": project_labels,
+                    "access_label": "All projects" if all_projects else (
+                        ", ".join(project_labels) if project_labels else "No project access"
+                    ),
                     "created_at": format_auth_timestamp(
                         metadata.creation_timestamp if metadata else None
                     ),
@@ -420,7 +491,7 @@ def create_app():
                 disabled=False,
             )
             firebase_auth.set_custom_user_claims(
-                user.uid, {"admin": False, "role": "worker"}
+                user.uid, user_claim_payload(False, False, [])
             )
             return jsonify({"ok": True, "uid": user.uid})
         except firebase_auth.EmailAlreadyExistsError:
@@ -470,6 +541,8 @@ def create_app():
         structure = get_structure(db(), structure_id)
         if not structure:
             return render_template("not_found.html", structure_id=structure_id), 404
+        if not user_can_access_structure(g.user, structure):
+            return structure_access_denied_response(structure)
         structure["project_display_name"] = get_project_display_name(
             db(), structure.get("project")
         )
@@ -478,9 +551,9 @@ def create_app():
     @app.get("/api/structure/<structure_id>")
     @login_required
     def api_structure(structure_id):
-        structure = get_structure(db(), structure_id)
-        if not structure:
-            return jsonify({"error": "Structure not found."}), 404
+        structure, error_response, status = load_allowed_structure(structure_id)
+        if error_response:
+            return error_response, status
         structure["project_display_name"] = get_project_display_name(
             db(), structure.get("project")
         )
@@ -491,6 +564,9 @@ def create_app():
     def api_update_item(structure_id, item_id):
         payload = request.get_json(silent=True) or {}
         new_status = payload.get("status")
+        _structure, error_response, status = load_allowed_structure(structure_id)
+        if error_response:
+            return error_response, status
         try:
             result = update_checklist_status(db(), structure_id, item_id, new_status, g.user)
         except ValueError as exc:
@@ -507,6 +583,9 @@ def create_app():
     @login_required
     def api_update_item_remark(structure_id, item_id):
         payload = request.get_json(silent=True) or {}
+        _structure, error_response, status = load_allowed_structure(structure_id)
+        if error_response:
+            return error_response, status
         try:
             result = update_checklist_remark(
                 db(), structure_id, item_id, payload.get("remark", ""), g.user
@@ -525,6 +604,9 @@ def create_app():
     @login_required
     def api_update_final_remark(structure_id):
         payload = request.get_json(silent=True) or {}
+        _structure, error_response, status = load_allowed_structure(structure_id)
+        if error_response:
+            return error_response, status
         try:
             result = update_final_remark(
                 db(), structure_id, payload.get("remark", ""), g.user
@@ -543,12 +625,14 @@ def create_app():
     @admin_required
     def admin_users():
         search = request.args.get("q", "").strip()
-        users, summary = build_auth_user_rows(search)
+        project_records = list_project_records(db())
+        users, summary = build_auth_user_rows(search, project_records)
         return render_template(
             "admin/users.html",
             users=users,
             summary=summary,
             search=search,
+            project_records=project_records,
         )
 
     @app.post("/admin/users")
@@ -558,11 +642,15 @@ def create_app():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         role = request.form.get("role", "worker")
+        all_projects, projects = project_access_from_form()
         if not name or not email or not password:
             flash("Name, email and password are required.", "danger")
             return redirect(url_for("admin_users"))
         if len(password) < 6:
             flash("Password must be at least 6 characters.", "danger")
+            return redirect(url_for("admin_users"))
+        if role != "admin" and not all_projects and not projects:
+            flash("Select at least one project or All projects for worker access.", "danger")
             return redirect(url_for("admin_users"))
 
         try:
@@ -576,7 +664,7 @@ def create_app():
             is_admin = role == "admin"
             firebase_auth.set_custom_user_claims(
                 user.uid,
-                {"admin": is_admin, "role": "admin" if is_admin else "worker"},
+                user_claim_payload(is_admin, all_projects, projects),
             )
         except firebase_auth.EmailAlreadyExistsError:
             flash("This email is already registered.", "danger")
@@ -624,14 +712,47 @@ def create_app():
         try:
             initialize_firebase()
             user = firebase_auth.get_user(uid)
+            claims = user.custom_claims or {}
             firebase_auth.set_custom_user_claims(
                 uid,
-                {"admin": is_admin, "role": "admin" if is_admin else "worker"},
+                user_claim_payload(
+                    is_admin,
+                    claims.get("all_projects"),
+                    claims.get("projects"),
+                ),
             )
             firebase_auth.revoke_refresh_tokens(uid)
             flash(f"Role updated for {user.email}.", "success")
         except Exception as exc:
             flash(f"Could not update role: {exc}", "danger")
+        return redirect(url_for("admin_users"))
+
+    @app.post("/admin/users/<uid>/projects")
+    @admin_required
+    def admin_update_user_projects(uid):
+        all_projects, projects = project_access_from_form()
+        if not all_projects and not projects:
+            flash("Select at least one project or All projects.", "danger")
+            return redirect(url_for("admin_users"))
+
+        try:
+            initialize_firebase()
+            user = firebase_auth.get_user(uid)
+            if user_is_admin(user):
+                firebase_auth.set_custom_user_claims(
+                    uid,
+                    user_claim_payload(True, True, []),
+                )
+                flash("Admin users already have all project access.", "info")
+            else:
+                firebase_auth.set_custom_user_claims(
+                    uid,
+                    user_claim_payload(False, all_projects, projects),
+                )
+                firebase_auth.revoke_refresh_tokens(uid)
+                flash(f"Project access updated for {user.email}.", "success")
+        except Exception as exc:
+            flash(f"Could not update project access: {exc}", "danger")
         return redirect(url_for("admin_users"))
 
     @app.post("/admin/users/<uid>/reset")

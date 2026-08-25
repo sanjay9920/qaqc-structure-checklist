@@ -27,6 +27,12 @@ def current_user():
     claims["email"] = email
     claims["uid"] = claims.get("uid") or claims.get("user_id") or claims.get("sub")
     claims["is_admin"] = bool(claims.get("admin")) or email in settings.admin_emails
+    claims["all_projects"] = bool(claims.get("all_projects")) or claims["is_admin"]
+    claims["projects"] = [
+        str(project).strip().upper().replace(" ", "-")
+        for project in claims.get("projects", [])
+        if str(project).strip()
+    ]
     return claims
 
 
