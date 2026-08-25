@@ -208,8 +208,14 @@
               <strong>${block.pending_structures || 0}</strong>
               <small class="d-block text-muted">${block.pending_structure_percent || 0}%</small>
             </td>
-            <td>${block.checklist_completed || 0} / ${block.checklist_total || 0}</td>
-            <td>${block.checklist_pending || 0} / ${block.checklist_total || 0}</td>
+            <td>
+              <strong>${block.checklist_completed || 0} / ${block.checklist_total || 0}</strong>
+              <small class="d-block text-muted">${block.completed_percent || 0}%</small>
+            </td>
+            <td>
+              <strong>${block.checklist_pending || 0} / ${block.checklist_total || 0}</strong>
+              <small class="d-block text-muted">${block.pending_percent || 0}%</small>
+            </td>
             <td>
               <div class="progress table-progress">
                 <div class="progress-bar" style="width: ${block.completed_percent || 0}%"></div>

@@ -327,8 +327,14 @@
                   <strong>{{ block_row.pending_structures }}</strong>
                   <small class="d-block text-muted">{{ block_row.pending_structure_percent }}%</small>
                 </td>
-                <td>{{ block_row.checklist_completed }} / {{ block_row.checklist_total }}</td>
-                <td>{{ block_row.checklist_pending }} / {{ block_row.checklist_total }}</td>
+                <td>
+                  <strong>{{ block_row.checklist_completed }} / {{ block_row.checklist_total }}</strong>
+                  <small class="d-block text-muted">{{ block_row.completed_percent }}%</small>
+                </td>
+                <td>
+                  <strong>{{ block_row.checklist_pending }} / {{ block_row.checklist_total }}</strong>
+                  <small class="d-block text-muted">{{ block_row.pending_percent }}%</small>
+                </td>
                 <td>
                   <div class="progress table-progress">
                     <div class="progress-bar" style="width: {{ block_row.completed_percent }}%"></div>
