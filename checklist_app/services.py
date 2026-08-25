@@ -683,6 +683,7 @@ def _empty_block_summary(block_id):
         "completed_percent": 0,
         "pending_percent": 0,
         "structure_percent": 0,
+        "pending_structure_percent": 0,
         "selected": False,
     }
 
@@ -705,6 +706,7 @@ def build_project_summary(structures, selected_block=None, block_count=0):
         "completed_percent": 0,
         "pending_percent": 0,
         "structure_percent": 0,
+        "pending_structure_percent": 0,
         "blocks": [],
     }
     blocks = {}
@@ -757,6 +759,9 @@ def build_project_summary(structures, selected_block=None, block_count=0):
         block_row["structure_percent"] = _percent(
             block_row["completed_structures"], block_row["total_structures"]
         )
+        block_row["pending_structure_percent"] = _percent(
+            block_row["pending_structures"], block_row["total_structures"]
+        )
         block_row["selected"] = bool(
             selected_block_id and block_row["block"] == selected_block_id
         )
@@ -793,6 +798,9 @@ def build_project_summary(structures, selected_block=None, block_count=0):
     )
     totals["structure_percent"] = _percent(
         totals["completed_structures"], totals["total_structures"]
+    )
+    totals["pending_structure_percent"] = _percent(
+        totals["pending_structures"], totals["total_structures"]
     )
     totals["blocks"] = block_rows
     totals["configured_block_count"] = block_count

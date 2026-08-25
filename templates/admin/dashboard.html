@@ -201,19 +201,24 @@
         <strong id="projectTotalStructures">{{ active_summary.total_structures }}</strong>
       </div>
       <div class="stat-tile">
-        <span>Block completed</span>
+        <span>Completed structures</span>
+        <strong id="projectCompletedStructures">{{ active_summary.completed_structures }}</strong>
+        <small id="projectCompletedStructuresNote">{{ active_summary.completed_structures }} / {{ active_summary.total_structures }} structures ({{ active_summary.structure_percent }}%)</small>
+      </div>
+      <div class="stat-tile">
+        <span>Pending structures</span>
+        <strong id="projectPendingStructures">{{ active_summary.pending_structures }}</strong>
+        <small id="projectPendingStructuresNote">{{ active_summary.pending_structures }} / {{ active_summary.total_structures }} structures ({{ active_summary.pending_structure_percent }}%)</small>
+      </div>
+      <div class="stat-tile">
+        <span>Completed points</span>
         <strong><span id="projectCompletedPercent">{{ active_summary.completed_percent }}</span>%</strong>
         <small id="projectCompletedPoints">{{ active_summary.checklist_completed }} / {{ active_summary.checklist_total }} points</small>
       </div>
       <div class="stat-tile">
-        <span>Block pending</span>
+        <span>Pending points</span>
         <strong><span id="projectPendingPercent">{{ active_summary.pending_percent }}</span>%</strong>
         <small id="projectPendingPoints">{{ active_summary.checklist_pending }} / {{ active_summary.checklist_total }} points</small>
-      </div>
-      <div class="stat-tile">
-        <span>Structure completion</span>
-        <strong><span id="projectStructurePercent">{{ active_summary.structure_percent }}</span>%</strong>
-        <small id="projectStructurePoints">{{ active_summary.completed_structures }} / {{ active_summary.total_structures }} structures</small>
       </div>
     {% else %}
       <div class="stat-tile">
@@ -225,19 +230,24 @@
         <strong id="projectTotalStructures">{{ project_summary.total_structures }}</strong>
       </div>
       <div class="stat-tile">
-        <span>Total completed</span>
+        <span>Completed structures</span>
+        <strong id="projectCompletedStructures">{{ project_summary.completed_structures }}</strong>
+        <small id="projectCompletedStructuresNote">{{ project_summary.completed_structures }} / {{ project_summary.total_structures }} structures ({{ project_summary.structure_percent }}%)</small>
+      </div>
+      <div class="stat-tile">
+        <span>Pending structures</span>
+        <strong id="projectPendingStructures">{{ project_summary.pending_structures }}</strong>
+        <small id="projectPendingStructuresNote">{{ project_summary.pending_structures }} / {{ project_summary.total_structures }} structures ({{ project_summary.pending_structure_percent }}%)</small>
+      </div>
+      <div class="stat-tile">
+        <span>Completed points</span>
         <strong><span id="projectCompletedPercent">{{ project_summary.completed_percent }}</span>%</strong>
         <small id="projectCompletedPoints">{{ project_summary.checklist_completed }} / {{ project_summary.checklist_total }} points</small>
       </div>
       <div class="stat-tile">
-        <span>Total pending</span>
+        <span>Pending points</span>
         <strong><span id="projectPendingPercent">{{ project_summary.pending_percent }}</span>%</strong>
         <small id="projectPendingPoints">{{ project_summary.checklist_pending }} / {{ project_summary.checklist_total }} points</small>
-      </div>
-      <div class="stat-tile">
-        <span>Structure completion</span>
-        <strong><span id="projectStructurePercent">{{ project_summary.structure_percent }}</span>%</strong>
-        <small id="projectStructurePoints">{{ project_summary.completed_structures }} / {{ project_summary.total_structures }} structures</small>
       </div>
     {% endif %}
   </section>
@@ -298,9 +308,9 @@
               <th>Structures</th>
               <th>Completed structures</th>
               <th>Pending structures</th>
-              <th>Completed %</th>
-              <th>Pending %</th>
-              <th>Structure %</th>
+              <th>Completed points</th>
+              <th>Pending points</th>
+              <th>Point progress</th>
               <th class="text-end">Action</th>
             </tr>
           </thead>
@@ -309,16 +319,22 @@
               <tr>
                 <td class="fw-semibold">{% if block_row.block %}Block {{ block_row.block_display }}{% else %}{{ block_row.block_display }}{% endif %}</td>
                 <td>{{ block_row.total_structures }}</td>
-                <td>{{ block_row.completed_structures }}</td>
-                <td>{{ block_row.pending_structures }}</td>
+                <td>
+                  <strong>{{ block_row.completed_structures }}</strong>
+                  <small class="d-block text-muted">{{ block_row.structure_percent }}%</small>
+                </td>
+                <td>
+                  <strong>{{ block_row.pending_structures }}</strong>
+                  <small class="d-block text-muted">{{ block_row.pending_structure_percent }}%</small>
+                </td>
+                <td>{{ block_row.checklist_completed }} / {{ block_row.checklist_total }}</td>
+                <td>{{ block_row.checklist_pending }} / {{ block_row.checklist_total }}</td>
                 <td>
                   <div class="progress table-progress">
                     <div class="progress-bar" style="width: {{ block_row.completed_percent }}%"></div>
                   </div>
                   <span class="small text-muted">{{ block_row.completed_percent }}%</span>
                 </td>
-                <td>{{ block_row.pending_percent }}%</td>
-                <td>{{ block_row.structure_percent }}%</td>
                 <td class="text-end">
                   {% if block_row.block %}
                     <a class="btn btn-sm btn-outline-dark" href="{{ url_for('admin_dashboard', project=project, block=block_row.block) }}">

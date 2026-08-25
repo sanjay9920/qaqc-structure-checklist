@@ -7,10 +7,12 @@
   const projectTotalStructuresEl = document.getElementById("projectTotalStructures");
   const projectCompletedPercentEl = document.getElementById("projectCompletedPercent");
   const projectPendingPercentEl = document.getElementById("projectPendingPercent");
-  const projectStructurePercentEl = document.getElementById("projectStructurePercent");
   const projectCompletedPointsEl = document.getElementById("projectCompletedPoints");
   const projectPendingPointsEl = document.getElementById("projectPendingPoints");
-  const projectStructurePointsEl = document.getElementById("projectStructurePoints");
+  const projectCompletedStructuresEl = document.getElementById("projectCompletedStructures");
+  const projectPendingStructuresEl = document.getElementById("projectPendingStructures");
+  const projectCompletedStructuresNoteEl = document.getElementById("projectCompletedStructuresNote");
+  const projectPendingStructuresNoteEl = document.getElementById("projectPendingStructuresNote");
   const selectedBlockLabelEl = document.getElementById("selectedBlockLabel");
   const dashboardTitle = document.getElementById("dashboardTitle");
   const dashboardScope = document.getElementById("dashboardScope");
@@ -153,17 +155,23 @@
     if (projectPendingPercentEl) {
       projectPendingPercentEl.textContent = activeSummary.pending_percent || 0;
     }
-    if (projectStructurePercentEl) {
-      projectStructurePercentEl.textContent = activeSummary.structure_percent || 0;
-    }
     if (projectCompletedPointsEl) {
       projectCompletedPointsEl.textContent = `${activeSummary.checklist_completed || 0} / ${activeSummary.checklist_total || 0} points`;
     }
     if (projectPendingPointsEl) {
       projectPendingPointsEl.textContent = `${activeSummary.checklist_pending || 0} / ${activeSummary.checklist_total || 0} points`;
     }
-    if (projectStructurePointsEl) {
-      projectStructurePointsEl.textContent = `${activeSummary.completed_structures || 0} / ${activeSummary.total_structures || 0} structures`;
+    if (projectCompletedStructuresEl) {
+      projectCompletedStructuresEl.textContent = activeSummary.completed_structures || 0;
+    }
+    if (projectPendingStructuresEl) {
+      projectPendingStructuresEl.textContent = activeSummary.pending_structures || 0;
+    }
+    if (projectCompletedStructuresNoteEl) {
+      projectCompletedStructuresNoteEl.textContent = `${activeSummary.completed_structures || 0} / ${activeSummary.total_structures || 0} structures (${activeSummary.structure_percent || 0}%)`;
+    }
+    if (projectPendingStructuresNoteEl) {
+      projectPendingStructuresNoteEl.textContent = `${activeSummary.pending_structures || 0} / ${activeSummary.total_structures || 0} structures (${activeSummary.pending_structure_percent || 0}%)`;
     }
     if (selectedBlockLabelEl && summary.selected_block) {
       selectedBlockLabelEl.textContent = blockLabel(summary.selected_block);
@@ -192,16 +200,22 @@
           <tr class="${block.selected ? "table-primary" : ""}">
             <td class="fw-semibold">${escapeHtml(blockName)}</td>
             <td>${block.total_structures || 0}</td>
-            <td>${block.completed_structures || 0}</td>
-            <td>${block.pending_structures || 0}</td>
+            <td>
+              <strong>${block.completed_structures || 0}</strong>
+              <small class="d-block text-muted">${block.structure_percent || 0}%</small>
+            </td>
+            <td>
+              <strong>${block.pending_structures || 0}</strong>
+              <small class="d-block text-muted">${block.pending_structure_percent || 0}%</small>
+            </td>
+            <td>${block.checklist_completed || 0} / ${block.checklist_total || 0}</td>
+            <td>${block.checklist_pending || 0} / ${block.checklist_total || 0}</td>
             <td>
               <div class="progress table-progress">
                 <div class="progress-bar" style="width: ${block.completed_percent || 0}%"></div>
               </div>
               <span class="small text-muted">${block.completed_percent || 0}%</span>
             </td>
-            <td>${block.pending_percent || 0}%</td>
-            <td>${block.structure_percent || 0}%</td>
             <td class="text-end">${action}</td>
           </tr>
         `;
