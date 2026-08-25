@@ -23,6 +23,7 @@
             <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
               {% if current_user.is_admin %}
                 <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin</a>
+                <a class="nav-link" href="{{ url_for('admin_users') }}">Users</a>
                 <a class="nav-link" href="{{ url_for('admin_checklist_items') }}">Checklist</a>
                 <a class="nav-link" href="{{ url_for('admin_history') }}">History</a>
               {% endif %}

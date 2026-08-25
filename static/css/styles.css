@@ -402,6 +402,17 @@ body {
   gap: 0.35rem;
 }
 
+.user-action-stack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.user-role-form {
+  min-width: 210px;
+}
+
 .qr-panel {
   padding: 1rem;
   display: grid;

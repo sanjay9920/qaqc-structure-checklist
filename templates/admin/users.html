@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}QA/QC Department - Users{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div>
+    <p class="eyebrow mb-1">QA/QC Department App</p>
+    <h1 class="h3 mb-0">Users</h1>
+    <p class="dashboard-tagline mb-0">Create users, reset passwords and remove access from one place.</p>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-tile">
+    <span>Total users</span>
+    <strong>{{ summary.total }}</strong>
+  </div>
+  <div class="stat-tile">
+    <span>Active access</span>
+    <strong>{{ summary.active }}</strong>
+  </div>
+  <div class="stat-tile">
+    <span>Access removed</span>
+    <strong>{{ summary.disabled }}</strong>
+  </div>
+</div>
+
+<section class="admin-grid">
+  <form class="admin-panel" action="{{ url_for('admin_create_user') }}" method="post">
+    <h2 class="h4 mb-3">Create user</h2>
+    <div class="row g-2">
+      <div class="col-12 col-md-6">
+        <label for="name" class="form-label">Name</label>
+        <input id="name" name="name" class="form-control" placeholder="Engineer / Worker name" required>
+      </div>
+      <div class="col-12 col-md-6">
+        <label for="email" class="form-label">Email</label>
+        <input id="email" name="email" type="email" class="form-control" placeholder="worker@example.com" required>
+      </div>
+      <div class="col-12 col-md-6">
+        <label for="password" class="form-label">Password</label>
+        <input id="password" name="password" type="password" class="form-control" minlength="6" required>
+      </div>
+      <div class="col-12 col-md-6">
+        <label for="role" class="form-label">Access type</label>
+        <select id="role" name="role" class="form-select">
+          <option value="worker">Checklist user</option>
+          <option value="admin">Admin all access</option>
+        </select>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-primary w-100" type="submit">
+          <i class="bi bi-person-plus" aria-hidden="true"></i>
+          Create User
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <form class="admin-panel" action="{{ url_for('admin_users') }}" method="get">
+    <h2 class="h4 mb-3">Open user dashboard</h2>
+    <label for="q" class="form-label">Search user</label>
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+      <input id="q" name="q" class="form-control" value="{{ search }}" placeholder="Search name, email or UID">
+      <button class="btn btn-outline-dark" type="submit">Search</button>
+    </div>
+    {% if search %}
+      <a class="btn btn-link px-0 mt-2" href="{{ url_for('admin_users') }}">Show all users</a>
+    {% endif %}
+  </form>
+</section>
+
+<div class="table-responsive admin-table mt-3">
+  <table class="table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Role</th>
+        <th>Access</th>
+        <th>Created</th>
+        <th>Last login</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+        <tr class="{% if user.disabled %}text-muted{% endif %}">
+          <td>
+            <div class="fw-semibold">{{ user.display_name or "-" }}</div>
+            <div>{{ user.email or "-" }}</div>
+            <div class="small text-muted">{{ user.uid }}</div>
+          </td>
+          <td>
+            <form action="{{ url_for('admin_update_user_role', uid=user.uid) }}" method="post" class="input-group input-group-sm user-role-form">
+              <select name="role" class="form-select" {% if user.uid == current_user.uid %}disabled{% endif %}>
+                <option value="worker" {% if not user.is_admin %}selected{% endif %}>Checklist user</option>
+                <option value="admin" {% if user.is_admin %}selected{% endif %}>Admin all access</option>
+              </select>
+              <button class="btn btn-outline-dark" type="submit" {% if user.uid == current_user.uid %}disabled{% endif %}>
+                Save
+              </button>
+            </form>
+          </td>
+          <td>
+            {% if user.disabled %}
+              <span class="badge text-bg-danger">Removed</span>
+            {% else %}
+              <span class="badge text-bg-success">Active</span>
+            {% endif %}
+            {% if user.is_admin %}
+              <span class="badge text-bg-primary">Admin</span>
+            {% endif %}
+          </td>
+          <td>{{ user.created_at }}</td>
+          <td>{{ user.last_sign_in }}</td>
+          <td class="text-end">
+            <div class="user-action-stack">
+              <form action="{{ url_for('admin_reset_user_password', uid=user.uid) }}" method="post">
+                <button class="btn btn-sm btn-outline-dark" type="submit" {% if not user.email %}disabled{% endif %}>
+                  <i class="bi bi-key" aria-hidden="true"></i>
+                  Reset
+                </button>
+              </form>
+              <form action="{{ url_for('admin_update_user_access', uid=user.uid) }}" method="post">
+                {% if user.disabled %}
+                  <input type="hidden" name="action" value="enable">
+                  <button class="btn btn-sm btn-success" type="submit">
+                    <i class="bi bi-unlock" aria-hidden="true"></i>
+                    Enable
+                  </button>
+                {% else %}
+                  <input type="hidden" name="action" value="disable">
+                  <button
+                    class="btn btn-sm btn-outline-danger"
+                    type="submit"
+                    {% if user.uid == current_user.uid %}disabled{% endif %}
+                    onclick="return confirm('Remove access for {{ user.email or user.uid }}?')"
+                  >
+                    <i class="bi bi-person-x" aria-hidden="true"></i>
+                    Remove access
+                  </button>
+                {% endif %}
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-4">No users found.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

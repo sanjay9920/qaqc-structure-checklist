@@ -17,7 +17,7 @@ def current_user():
         initialize_firebase()
         claims = firebase_auth.verify_session_cookie(
             session_cookie,
-            check_revoked=False,
+            check_revoked=True,
             clock_skew_seconds=10,
         )
     except Exception:
@@ -25,6 +25,7 @@ def current_user():
 
     email = (claims.get("email") or "").lower()
     claims["email"] = email
+    claims["uid"] = claims.get("uid") or claims.get("user_id") or claims.get("sub")
     claims["is_admin"] = bool(claims.get("admin")) or email in settings.admin_emails
     return claims
 

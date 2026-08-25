@@ -1,9 +1,10 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
 import time
 from urllib import error as url_error
 from urllib import request as url_request
+from zoneinfo import ZoneInfo
 
 from firebase_admin import auth as firebase_auth
 from google.api_core.exceptions import ResourceExhausted
@@ -167,6 +168,7 @@ def create_app():
             "MISSING_PASSWORD": "Please enter a password.",
             "OPERATION_NOT_ALLOWED": "Email/password login is not enabled in Firebase Authentication.",
             "TOO_MANY_ATTEMPTS_TRY_LATER": "Too many attempts. Please try again later.",
+            "USER_DISABLED": "This user access is disabled. Contact admin.",
             "WEAK_PASSWORD : Password should be at least 6 characters": "Password must be at least 6 characters.",
         }
         return messages.get(str(error), "Request failed. Please try again.")
@@ -197,6 +199,59 @@ def create_app():
             samesite="Lax",
         )
         return response
+
+    def format_auth_timestamp(value):
+        if not value:
+            return "-"
+        try:
+            timestamp = int(value) / 1000
+            moment = datetime.fromtimestamp(timestamp, ZoneInfo(settings.app_timezone))
+            return moment.strftime("%d-%m-%Y %I:%M %p")
+        except Exception:
+            return "-"
+
+    def user_is_admin(user_record):
+        claims = user_record.custom_claims or {}
+        email = (user_record.email or "").lower()
+        return bool(claims.get("admin")) or email in settings.admin_emails
+
+    def build_auth_user_rows(search=""):
+        initialize_firebase()
+        query = (search or "").strip().lower()
+        users = []
+        for user in firebase_auth.list_users().iterate_all():
+            claims = user.custom_claims or {}
+            email = user.email or ""
+            display_name = user.display_name or ""
+            haystack = " ".join([user.uid, email, display_name]).lower()
+            if query and query not in haystack:
+                continue
+            metadata = user.user_metadata
+            users.append(
+                {
+                    "uid": user.uid,
+                    "email": email,
+                    "display_name": display_name,
+                    "disabled": bool(user.disabled),
+                    "email_verified": bool(user.email_verified),
+                    "is_admin": user_is_admin(user),
+                    "role": claims.get("role") or ("admin" if user_is_admin(user) else "worker"),
+                    "created_at": format_auth_timestamp(
+                        metadata.creation_timestamp if metadata else None
+                    ),
+                    "last_sign_in": format_auth_timestamp(
+                        metadata.last_sign_in_timestamp if metadata else None
+                    ),
+                }
+            )
+        users.sort(key=lambda item: (item["disabled"], item["email"].lower()))
+        summary = {
+            "total": len(users),
+            "active": sum(1 for user in users if not user["disabled"]),
+            "disabled": sum(1 for user in users if user["disabled"]),
+            "admins": sum(1 for user in users if user["is_admin"]),
+        }
+        return users, summary
 
     def build_dashboard_payload(search, project_id, block_id):
         cache_key = (
@@ -333,6 +388,7 @@ def create_app():
             return jsonify({"error": auth_error_message(exc)}), 401
 
     @app.post("/auth/signup")
+    @admin_required
     def auth_signup():
         payload = request.get_json(silent=True) or {}
         name = (payload.get("name") or "").strip()
@@ -354,17 +410,14 @@ def create_app():
             firebase_auth.set_custom_user_claims(
                 user.uid, {"admin": False, "role": "worker"}
             )
-            result = firebase_auth_request(
-                "signInWithPassword",
-                {"email": email, "password": password, "returnSecureToken": True},
-            )
-            return create_session_response(result["idToken"])
+            return jsonify({"ok": True, "uid": user.uid})
         except firebase_auth.EmailAlreadyExistsError:
             return jsonify({"error": auth_error_message("EMAIL_EXISTS")}), 409
         except Exception as exc:
             return jsonify({"error": auth_error_message(exc)}), 400
 
     @app.post("/auth/reset")
+    @admin_required
     def auth_reset():
         payload = request.get_json(silent=True) or {}
         email = (payload.get("email") or "").strip()
@@ -473,6 +526,119 @@ def create_app():
             return jsonify({"error": "Structure not found."}), 404
         clear_dashboard_cache()
         return jsonify(result)
+
+    @app.get("/admin/users")
+    @admin_required
+    def admin_users():
+        search = request.args.get("q", "").strip()
+        users, summary = build_auth_user_rows(search)
+        return render_template(
+            "admin/users.html",
+            users=users,
+            summary=summary,
+            search=search,
+        )
+
+    @app.post("/admin/users")
+    @admin_required
+    def admin_create_user():
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "worker")
+        if not name or not email or not password:
+            flash("Name, email and password are required.", "danger")
+            return redirect(url_for("admin_users"))
+        if len(password) < 6:
+            flash("Password must be at least 6 characters.", "danger")
+            return redirect(url_for("admin_users"))
+
+        try:
+            initialize_firebase()
+            user = firebase_auth.create_user(
+                email=email,
+                password=password,
+                display_name=name,
+                disabled=False,
+            )
+            is_admin = role == "admin"
+            firebase_auth.set_custom_user_claims(
+                user.uid,
+                {"admin": is_admin, "role": "admin" if is_admin else "worker"},
+            )
+        except firebase_auth.EmailAlreadyExistsError:
+            flash("This email is already registered.", "danger")
+            return redirect(url_for("admin_users", q=email))
+        except Exception as exc:
+            flash(auth_error_message(exc), "danger")
+            return redirect(url_for("admin_users"))
+
+        flash(f"User {email} created.", "success")
+        return redirect(url_for("admin_users", q=email))
+
+    @app.post("/admin/users/<uid>/access")
+    @admin_required
+    def admin_update_user_access(uid):
+        action = request.form.get("action", "")
+        if uid == g.user.get("uid"):
+            flash("You cannot remove access from your own active login.", "danger")
+            return redirect(url_for("admin_users"))
+
+        try:
+            initialize_firebase()
+            user = firebase_auth.get_user(uid)
+            if action == "disable":
+                firebase_auth.update_user(uid, disabled=True)
+                firebase_auth.revoke_refresh_tokens(uid)
+                flash(f"Access removed for {user.email}.", "success")
+            elif action == "enable":
+                firebase_auth.update_user(uid, disabled=False)
+                flash(f"Access enabled for {user.email}.", "success")
+            else:
+                flash("Invalid access action.", "danger")
+        except Exception as exc:
+            flash(f"Could not update access: {exc}", "danger")
+        return redirect(url_for("admin_users"))
+
+    @app.post("/admin/users/<uid>/role")
+    @admin_required
+    def admin_update_user_role(uid):
+        role = request.form.get("role", "worker")
+        is_admin = role == "admin"
+        if uid == g.user.get("uid") and not is_admin:
+            flash("You cannot remove admin access from your own active login.", "danger")
+            return redirect(url_for("admin_users"))
+
+        try:
+            initialize_firebase()
+            user = firebase_auth.get_user(uid)
+            firebase_auth.set_custom_user_claims(
+                uid,
+                {"admin": is_admin, "role": "admin" if is_admin else "worker"},
+            )
+            firebase_auth.revoke_refresh_tokens(uid)
+            flash(f"Role updated for {user.email}.", "success")
+        except Exception as exc:
+            flash(f"Could not update role: {exc}", "danger")
+        return redirect(url_for("admin_users"))
+
+    @app.post("/admin/users/<uid>/reset")
+    @admin_required
+    def admin_reset_user_password(uid):
+        try:
+            initialize_firebase()
+            user = firebase_auth.get_user(uid)
+            if not user.email:
+                flash("This user does not have an email address.", "danger")
+                return redirect(url_for("admin_users"))
+            firebase_auth_request(
+                "sendOobCode",
+                {"requestType": "PASSWORD_RESET", "email": user.email},
+            )
+            flash(f"Password reset link sent to {user.email}.", "success")
+        except Exception as exc:
+            flash(auth_error_message(exc), "danger")
+        return redirect(url_for("admin_users"))
 
     @app.get("/admin")
     @admin_required
