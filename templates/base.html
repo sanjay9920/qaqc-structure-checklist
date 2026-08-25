@@ -23,6 +23,10 @@
           <span class="app-brand-title">Quality Department</span>
           <span class="app-brand-subtitle">Structure Inspection Management System</span>
         </a>
+        <button id="installPwaButton" class="btn btn-sm btn-outline-primary d-none ms-auto me-2" type="button">
+          <i class="bi bi-phone" aria-hidden="true"></i>
+          Install App
+        </button>
         {% if current_user %}
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
             <span class="navbar-toggler-icon"></span>
@@ -36,10 +40,6 @@
                 <a class="nav-link" href="{{ url_for('admin_history') }}">History</a>
               {% endif %}
               <span class="nav-link text-muted small">{{ current_user.email }}</span>
-              <button id="installPwaButton" class="btn btn-sm btn-outline-primary d-none" type="button">
-                <i class="bi bi-phone" aria-hidden="true"></i>
-                Install App
-              </button>
               <a class="btn btn-sm btn-outline-dark" href="{{ url_for('logout') }}">
                 <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
                 Logout
