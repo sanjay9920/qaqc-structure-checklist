@@ -24,9 +24,9 @@
       <i class="bi bi-phone" aria-hidden="true"></i>
       Open page
     </a>
-    <a class="btn btn-primary" href="{{ url_for('admin_structure_qr', structure_id=structure.structure_id) }}">
+    <a class="btn btn-primary" href="{{ url_for('admin_structure_qr', structure_id=structure.structure_id, download=1) }}" download="{{ structure.structure_id }}.png">
       <i class="bi bi-download" aria-hidden="true"></i>
-      QR PNG
+      Download QR PNG
     </a>
   </div>
 </div>

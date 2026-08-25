@@ -935,7 +935,12 @@ def create_app():
     @admin_required
     def admin_structure_qr(structure_id):
         png = generate_qr_bytes(normalize_structure_id(structure_id), public_base_url())
-        return send_file(png, mimetype="image/png", download_name=f"{structure_id}.png")
+        return send_file(
+            png,
+            mimetype="image/png",
+            as_attachment=request.args.get("download") == "1",
+            download_name=f"{structure_id}.png",
+        )
 
     @app.get("/admin/qr-codes.zip")
     @admin_required

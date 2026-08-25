@@ -268,9 +268,9 @@
               <i class="bi bi-eye" aria-hidden="true"></i>
               View
             </a>
-            <a class="btn btn-sm btn-outline-dark" href="${structureUrl(structureId)}/qr.png">
-              <i class="bi bi-qr-code" aria-hidden="true"></i>
-              QR
+            <a class="btn btn-sm btn-outline-dark" href="${structureUrl(structureId)}/qr.png?download=1" download="${escapeHtml(structureId)}.png">
+              <i class="bi bi-download" aria-hidden="true"></i>
+              Download QR
             </a>
             <form
               action="${structureUrl(structureId)}/delete"
