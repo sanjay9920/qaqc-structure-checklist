@@ -109,7 +109,7 @@
     }
     isScanning = false;
     startButton.removeAttribute("disabled");
-    setStatus("Scanner stopped.", "text-muted");
+    setStatus("Scan stopped.", "text-muted");
   }
 
   startButton.addEventListener("click", startScanner);
