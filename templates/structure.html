@@ -84,6 +84,25 @@
     <div id="progressBar" class="progress-bar" style="width: {{ structure.counts.progress }}%"></div>
   </div>
 
+  <section class="structure-qr-panel" aria-label="Structure QR code">
+    <div class="structure-qr-copy">
+      <p class="eyebrow mb-1">Structure QR</p>
+      <h2 class="h5 mb-1">Scan or download this checklist QR</h2>
+      <code>{{ url_for('structure_page', structure_id=structure.structure_id, _external=True) }}</code>
+    </div>
+    <div class="structure-qr-actions">
+      <img src="{{ url_for('structure_qr', structure_id=structure.structure_id) }}" alt="QR code for {{ structure.structure_id }}">
+      <a
+        class="btn btn-primary"
+        href="{{ url_for('structure_qr', structure_id=structure.structure_id, download=1) }}"
+        download="{{ structure.structure_id }}.png"
+      >
+        <i class="bi bi-download" aria-hidden="true"></i>
+        Download QR
+      </a>
+    </div>
+  </section>
+
   <section id="checklistItems" class="checklist-list">
     {% for item in structure.checklist %}
       <article class="checklist-item" data-item-id="{{ item.item_id }}">

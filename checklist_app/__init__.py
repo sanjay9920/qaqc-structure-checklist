@@ -619,6 +619,17 @@ def create_app():
             can_edit_structure=can_edit_structure(structure),
         )
 
+    @app.get("/structure/<structure_id>/qr.png")
+    def structure_qr(structure_id):
+        normalized_id = normalize_structure_id(structure_id)
+        png = generate_qr_bytes(normalized_id, public_base_url())
+        return send_file(
+            png,
+            mimetype="image/png",
+            as_attachment=request.args.get("download") == "1",
+            download_name=f"{normalized_id}.png",
+        )
+
     @app.get("/api/structure/<structure_id>")
     def api_structure(structure_id):
         structure = get_structure(db(), structure_id)

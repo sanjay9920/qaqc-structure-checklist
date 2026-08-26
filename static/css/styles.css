@@ -241,6 +241,44 @@ body {
   font-weight: 700;
 }
 
+.structure-qr-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.structure-qr-copy code {
+  display: block;
+  max-width: 100%;
+  padding: 0.55rem 0.65rem;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.structure-qr-actions {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+}
+
+.structure-qr-actions img {
+  width: 132px;
+  height: 132px;
+  padding: 0.35rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
 .checklist-item {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -596,6 +634,23 @@ body {
 
   .summary-tile strong {
     font-size: 1.05rem;
+  }
+
+  .structure-qr-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .structure-qr-actions {
+    width: 100%;
+  }
+
+  .structure-qr-actions .btn {
+    width: 100%;
+  }
+
+  .structure-qr-actions img {
+    width: 150px;
+    height: 150px;
   }
 
   .status-select {
