@@ -1,5 +1,6 @@
 import csv
 from io import BytesIO, StringIO
+import json
 
 from openpyxl import Workbook
 
@@ -14,6 +15,23 @@ def _status_label(value):
 
 def _project_label(display_names, project_id):
     return display_names.get(project_id, project_id or "")
+
+
+def _measurement_text(item):
+    values = item.get("measurements", {}) or {}
+    parts = []
+    for field in item.get("measurement_fields", []) or []:
+        value = str(values.get(field.get("key"), "") or "").strip()
+        if not value:
+            continue
+        unit = f" {field.get('unit')}" if field.get("unit") else ""
+        parts.append(f"{field.get('label', field.get('key'))}: {value}{unit}")
+    return "; ".join(parts)
+
+
+def _measurement_history_text(row, key):
+    values = row.get(key, {}) or {}
+    return json.dumps(values, ensure_ascii=False, sort_keys=True) if values else ""
 
 
 def export_structures_csv(db, project=None, block=None):
@@ -117,9 +135,12 @@ def export_equipment_csv(db, project=None, block=None):
             "Record No.",
             "Equipment Checklist ID",
             "Checklist Point",
+            "Activity / Section",
+            "Check Type",
+            "Acceptance Criteria",
             "Status",
-            "Recorded Value / Reading",
-            "Reading Updated By",
+            "Observations / Measurements",
+            "Observation Updated By",
             "Point Remark",
             "Remark Updated By",
             "Final Remark",
@@ -143,9 +164,12 @@ def export_equipment_csv(db, project=None, block=None):
                     record.get("record_number", ""),
                     record.get("equipment_id", ""),
                     item.get("label", ""),
+                    item.get("section", ""),
+                    item.get("check_type", ""),
+                    item.get("acceptance_criteria", ""),
                     _status_label(item.get("status", "")),
-                    item.get("value") or "",
-                    item.get("value_updated_by") or "",
+                    _measurement_text(item),
+                    item.get("measurement_updated_by") or "",
                     item.get("remark") or "",
                     item.get("remark_updated_by") or "",
                     record.get("final_remark") or "",
@@ -179,6 +203,8 @@ def export_equipment_history_csv(db, project=None, block=None):
             "New Remark",
             "Previous Value",
             "New Value",
+            "Previous Measurements",
+            "New Measurements",
             "Updated By",
             "Date",
             "Time",
@@ -201,6 +227,8 @@ def export_equipment_history_csv(db, project=None, block=None):
                 row.get("new_remark", ""),
                 row.get("previous_value", ""),
                 row.get("new_value", ""),
+                _measurement_history_text(row, "previous_measurements"),
+                _measurement_history_text(row, "new_measurements"),
                 row.get("updated_by", ""),
                 row.get("updated_date", ""),
                 row.get("updated_time", ""),
@@ -302,9 +330,12 @@ def export_all_xlsx(db, project=None, block=None):
             "Record No.",
             "Equipment Checklist ID",
             "Checklist Point",
+            "Activity / Section",
+            "Check Type",
+            "Acceptance Criteria",
             "Status",
-            "Recorded Value / Reading",
-            "Reading Updated By",
+            "Observations / Measurements",
+            "Observation Updated By",
             "Point Remark",
             "Remark Updated By",
             "Final Remark",
@@ -328,9 +359,12 @@ def export_all_xlsx(db, project=None, block=None):
                     record.get("record_number", ""),
                     record.get("equipment_id", ""),
                     item.get("label", ""),
+                    item.get("section", ""),
+                    item.get("check_type", ""),
+                    item.get("acceptance_criteria", ""),
                     _status_label(item.get("status", "")),
-                    item.get("value") or "",
-                    item.get("value_updated_by") or "",
+                    _measurement_text(item),
+                    item.get("measurement_updated_by") or "",
                     item.get("remark") or "",
                     item.get("remark_updated_by") or "",
                     record.get("final_remark") or "",
@@ -359,6 +393,8 @@ def export_all_xlsx(db, project=None, block=None):
             "New Remark",
             "Previous Value",
             "New Value",
+            "Previous Measurements",
+            "New Measurements",
             "Updated By",
             "Date",
             "Time",
@@ -381,6 +417,8 @@ def export_all_xlsx(db, project=None, block=None):
                 row.get("new_remark", ""),
                 row.get("previous_value", ""),
                 row.get("new_value", ""),
+                _measurement_history_text(row, "previous_measurements"),
+                _measurement_history_text(row, "new_measurements"),
                 row.get("updated_by", ""),
                 row.get("updated_date", ""),
                 row.get("updated_time", ""),

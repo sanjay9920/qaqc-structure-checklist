@@ -212,13 +212,13 @@ Example document ID:
 100-MW-AKOLA-SITE-BLOCK-1-EQP-CABLE-LAYING-01
 ```
 
-Each document stores its project, block, checklist template, record number, QR URL, point statuses, measured values/readings, point remarks, final remark and update user/timestamps.
+Each document stores its project, block, checklist template, record number, QR URL, point statuses, Excel-format observations/measurements, point remarks, final remark and update user/timestamps.
 
 ### `equipment_history/{auto_id}`
 
 Every equipment status, measured reading, point remark and final remark change is stored with project, block, checklist name, record number, previous value, new value, user, date and time.
 
-The bundled catalog contains 44 checklist types and 576 points extracted from `3.)Ele chechlist of Block.xlsx`.
+The bundled catalog contains 44 checklist types and 576 points extracted from `3.)Ele chechlist of Block.xlsx`. Every point includes the Excel observation field. ERT, VOC, IR, IMP, LV IR and inverter pre-commissioning retain their multi-column measurement formats.
 
 ## 5. Environment File
 
@@ -286,7 +286,7 @@ To use an electrical/equipment checklist:
 2. Select a block.
 3. Select the checklist type, such as Cable Laying or Transformer Installation.
 4. Enter a record number such as `01` and click `Open`.
-5. Update each point status, applicable measured reading and remark, then download that record's QR.
+5. Update each point status, Excel-format observation/measurement fields and remark, then download that record's QR.
 
 To rebuild the checklist catalog from the source workbook:
 
@@ -415,6 +415,7 @@ GET  /equipment/<equipment_id>
 GET  /equipment/<equipment_id>/qr.png
 GET  /api/equipment/<equipment_id>
 POST /api/equipment/<equipment_id>/items/<item_id>/value
+POST /api/equipment/<equipment_id>/items/<item_id>/measurements
 GET  /admin
 POST /admin/equipment
 POST /admin/equipment/<equipment_id>/delete

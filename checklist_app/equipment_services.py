@@ -46,6 +46,12 @@ def build_default_equipment_checklist(template):
             "value": "",
             "value_updated_at": None,
             "value_updated_by": None,
+            "measurements": {
+                field["key"]: field.get("default", "")
+                for field in item.get("measurement_fields", [])
+            },
+            "measurement_updated_at": None,
+            "measurement_updated_by": None,
             "updated_at": None,
             "updated_by": None,
         }
@@ -68,6 +74,12 @@ def sync_equipment_points(ref, data, template):
                 "value": "",
                 "value_updated_at": None,
                 "value_updated_by": None,
+                "measurements": {
+                    field["key"]: field.get("default", "")
+                    for field in item.get("measurement_fields", [])
+                },
+                "measurement_updated_at": None,
+                "measurement_updated_by": None,
                 "updated_at": None,
                 "updated_by": None,
             }
@@ -86,6 +98,15 @@ def build_equipment_view(equipment_id, data, template):
     rows = []
     for item in template["points"]:
         existing = checklist.get(item["item_id"], {}) or {}
+        measurement_fields = item.get("measurement_fields", []) or []
+        measurements = {
+            field["key"]: field.get("default", "") for field in measurement_fields
+        }
+        measurements.update(existing.get("measurements", {}) or {})
+        if existing.get("value") and measurement_fields:
+            first_key = measurement_fields[0]["key"]
+            if not measurements.get(first_key):
+                measurements[first_key] = existing["value"]
         rows.append(
             {
                 "item_id": item["item_id"],
@@ -94,10 +115,26 @@ def build_equipment_view(equipment_id, data, template):
                 "remark": existing.get("remark", ""),
                 "remark_updated_at": existing.get("remark_updated_at"),
                 "remark_updated_by": existing.get("remark_updated_by"),
-                "value_enabled": bool(item.get("value_enabled")),
+                "check_type": item.get("check_type", ""),
+                "acceptance_criteria": item.get("acceptance_criteria", ""),
+                "section": item.get("section", ""),
+                "measurement_fields": measurement_fields,
+                "measurements": measurements,
+                "has_measurements": any(
+                    str(value or "").strip() for value in measurements.values()
+                ),
+                "measurement_updated_at": existing.get("measurement_updated_at")
+                or existing.get("value_updated_at"),
+                "measurement_updated_by": existing.get("measurement_updated_by")
+                or existing.get("value_updated_by"),
+                "value_enabled": bool(measurement_fields),
                 "value_label": item.get("value_label", "Recorded Value / Reading"),
                 "value_hint": item.get("value_hint", "Enter measured value or reading"),
-                "value": existing.get("value", ""),
+                "value": (
+                    measurements.get(measurement_fields[0]["key"], "")
+                    if measurement_fields
+                    else existing.get("value", "")
+                ),
                 "value_updated_at": existing.get("value_updated_at"),
                 "value_updated_by": existing.get("value_updated_by"),
                 "updated_at": existing.get("updated_at"),
@@ -240,7 +277,14 @@ def build_equipment_summary(records):
 
 
 def _equipment_item_update(
-    db, equipment_id, item_id, user, status=None, remark=None, value=None
+    db,
+    equipment_id,
+    item_id,
+    user,
+    status=None,
+    remark=None,
+    value=None,
+    measurements=None,
 ):
     equipment_id = normalize_equipment_id(equipment_id)
     ref = db.collection("equipment_checklists").document(equipment_id)
@@ -255,6 +299,7 @@ def _equipment_item_update(
     previous_status = item.get("status", "pending")
     previous_remark = item.get("remark", "")
     previous_value = item.get("value", "")
+    previous_measurements = dict(item.get("measurements", {}) or {})
     timestamp_utc = now_utc()
     timestamp_local = now_local()
     email = user.get("email") or "unknown"
@@ -262,8 +307,8 @@ def _equipment_item_update(
         change_type = "status"
     elif remark is not None:
         change_type = "remark"
-    elif value is not None:
-        change_type = "value"
+    elif measurements is not None or value is not None:
+        change_type = "measurements"
     else:
         raise ValueError("No checklist update supplied.")
 
@@ -292,16 +337,35 @@ def _equipment_item_update(
             ),
             None,
         )
-        if not template_point or not template_point.get("value_enabled"):
-            raise ValueError("This checklist point does not accept a reading.")
-        value = (value or "").strip()
-        if len(value) > 500:
-            raise ValueError("Recorded value must be 500 characters or less.")
+        fields = (template_point or {}).get("measurement_fields", []) or []
+        if not template_point or not fields:
+            raise ValueError("This checklist point does not accept observations.")
+        allowed_keys = {field["key"] for field in fields}
+        if measurements is None:
+            measurements = {fields[0]["key"]: value or ""}
+        if not isinstance(measurements, dict):
+            raise ValueError("Measurements must be supplied as fields.")
+        unknown_keys = set(measurements) - allowed_keys
+        if unknown_keys:
+            raise ValueError("Invalid measurement field.")
+        cleaned_measurements = dict(previous_measurements)
+        for key, field_value in measurements.items():
+            cleaned_value = str(field_value or "").strip()
+            if len(cleaned_value) > 500:
+                raise ValueError("Each observation must be 500 characters or less.")
+            cleaned_measurements[key] = cleaned_value
+        if sum(len(value) for value in cleaned_measurements.values()) > 5000:
+            raise ValueError("Measurement values are too long.")
+        first_key = fields[0]["key"]
+        value = cleaned_measurements.get(first_key, "")
         item.update(
             {
                 "value": value,
                 "value_updated_at": timestamp_utc,
                 "value_updated_by": email,
+                "measurements": cleaned_measurements,
+                "measurement_updated_at": timestamp_utc,
+                "measurement_updated_by": email,
             }
         )
     checklist[item_id] = item
@@ -314,7 +378,7 @@ def _equipment_item_update(
     elif remark is not None:
         changed = previous_remark != remark
     else:
-        changed = previous_value != value
+        changed = previous_measurements != cleaned_measurements
     if changed:
         db.collection("equipment_history").add(
             {
@@ -333,6 +397,12 @@ def _equipment_item_update(
                 "new_remark": remark if remark is not None else previous_remark,
                 "previous_value": previous_value,
                 "new_value": value if value is not None else previous_value,
+                "previous_measurements": previous_measurements,
+                "new_measurements": (
+                    cleaned_measurements
+                    if measurements is not None or value is not None
+                    else previous_measurements
+                ),
                 "updated_by": email,
                 "updated_by_uid": user.get("uid"),
                 "updated_at": timestamp_utc,
@@ -354,6 +424,12 @@ def update_equipment_remark(db, equipment_id, item_id, remark, user):
 
 def update_equipment_value(db, equipment_id, item_id, value, user):
     return _equipment_item_update(db, equipment_id, item_id, user, value=value)
+
+
+def update_equipment_measurements(db, equipment_id, item_id, measurements, user):
+    return _equipment_item_update(
+        db, equipment_id, item_id, user, measurements=measurements
+    )
 
 
 def update_equipment_final_remark(db, equipment_id, remark, user):
@@ -397,6 +473,8 @@ def update_equipment_final_remark(db, equipment_id, remark, user):
                 "new_remark": remark,
                 "previous_value": "",
                 "new_value": "",
+                "previous_measurements": {},
+                "new_measurements": {},
                 "updated_by": email,
                 "updated_by_uid": user.get("uid"),
                 "updated_at": timestamp_utc,

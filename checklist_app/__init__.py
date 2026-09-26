@@ -40,6 +40,7 @@ from .equipment_services import (
     list_equipment_checklists,
     normalize_equipment_id,
     update_equipment_final_remark,
+    update_equipment_measurements,
     update_equipment_remark,
     update_equipment_status,
     update_equipment_value,
@@ -336,6 +337,12 @@ def create_app():
                 "item_id": item.get("item_id"),
                 "label": item.get("label"),
                 "status": item.get("status", "pending"),
+                "check_type": item.get("check_type", ""),
+                "acceptance_criteria": item.get("acceptance_criteria", ""),
+                "section": item.get("section", ""),
+                "measurement_fields": item.get("measurement_fields", []),
+                "measurements": item.get("measurements", {}),
+                "has_measurements": item.get("has_measurements", False),
                 "value_enabled": bool(item.get("value_enabled")),
                 "value_label": item.get("value_label", "Recorded Value / Reading"),
                 "value": item.get("value", "") if item.get("value_enabled") else "",
@@ -866,6 +873,29 @@ def create_app():
                 "Equipment reading update failed for %s/%s", equipment_id, item_id
             )
             return jsonify({"error": "Could not update reading. Please try again."}), 500
+        clear_dashboard_cache()
+        return jsonify(result)
+
+    @app.post("/api/equipment/<equipment_id>/items/<item_id>/measurements")
+    @login_required
+    def api_update_equipment_item_measurements(equipment_id, item_id):
+        payload = request.get_json(silent=True) or {}
+        _equipment, error_response, status = load_allowed_equipment(equipment_id)
+        if error_response:
+            return error_response, status
+        try:
+            result = update_equipment_measurements(
+                db(), equipment_id, item_id, payload.get("measurements", {}), g.user
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            app.logger.exception(
+                "Equipment measurements update failed for %s/%s",
+                equipment_id,
+                item_id,
+            )
+            return jsonify({"error": "Could not update observations. Please try again."}), 500
         clear_dashboard_cache()
         return jsonify(result)
 

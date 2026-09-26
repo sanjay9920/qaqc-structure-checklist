@@ -43,20 +43,28 @@
     }
     const meta = row.querySelector(".remark-updated-by");
     if (meta) meta.textContent = item.remark_updated_by ? "Remark by " + item.remark_updated_by : "";
-    const valueInput = row.querySelector(".value-input");
-    if (valueInput && (valueInput.dataset.saving === "true" || (document.activeElement !== valueInput && row.dataset.valueDirty !== "true"))) {
-      valueInput.value = item.value || "";
-      valueInput.dataset.previousValue = item.value || "";
-      row.dataset.valueDirty = "false";
+    const measurementInputs = Array.from(row.querySelectorAll(".measurement-input"));
+    const measurementFocused = measurementInputs.includes(document.activeElement);
+    if (measurementInputs.length && (row.dataset.measurementSaving === "true" || (!measurementFocused && row.dataset.measurementDirty !== "true"))) {
+      measurementInputs.forEach(function (measurementInput) {
+        const value = (item.measurements || {})[measurementInput.dataset.fieldKey] || "";
+        measurementInput.value = value;
+        measurementInput.dataset.previousValue = value;
+      });
+      row.dataset.measurementDirty = "false";
     }
-    const valueMeta = row.querySelector(".value-updated-by");
-    if (valueMeta) valueMeta.textContent = item.value_updated_by ? "Reading by " + item.value_updated_by : "";
-    const publicValue = row.querySelector(".recorded-value");
-    const publicValueText = row.querySelector(".recorded-value-text");
-    if (publicValue && publicValueText) {
-      publicValueText.textContent = item.value || "";
-      publicValue.classList.toggle("d-none", !item.value);
-    }
+    const measurementMeta = row.querySelector(".measurement-updated-by");
+    if (measurementMeta) measurementMeta.textContent = item.measurement_updated_by ? "Observation by " + item.measurement_updated_by : "";
+    const publicValues = row.querySelector(".recorded-values");
+    let hasPublicValue = false;
+    row.querySelectorAll(".recorded-value-entry").forEach(function (entry) {
+      const value = (item.measurements || {})[entry.dataset.fieldKey] || "";
+      const text = entry.querySelector(".recorded-value-text");
+      if (text) text.textContent = value;
+      entry.classList.toggle("d-none", !value);
+      if (value) hasPublicValue = true;
+    });
+    if (publicValues) publicValues.classList.toggle("d-none", !hasPublicValue);
   }
 
   function renderRecord(payload) {
@@ -110,9 +118,9 @@
     const input = row.querySelector(".remark-input");
     const save = row.querySelector(".save-remark");
     const clear = row.querySelector(".clear-remark");
-    const valueInput = row.querySelector(".value-input");
-    const valueSave = row.querySelector(".save-value");
-    const valueClear = row.querySelector(".clear-value");
+    const measurementInputs = Array.from(row.querySelectorAll(".measurement-input"));
+    const measurementSave = row.querySelector(".save-measurements");
+    const measurementClear = row.querySelector(".clear-measurements");
     if (select) {
       select.dataset.previousStatus = select.value;
       select.addEventListener("change", async function () {
@@ -156,31 +164,41 @@
     }
     if (save && input) save.addEventListener("click", function () { saveRemark(input.value); });
     if (clear && input) clear.addEventListener("click", function () { input.value = ""; saveRemark(""); });
-    if (valueInput) {
-      valueInput.dataset.previousValue = valueInput.value;
-      row.dataset.valueDirty = "false";
-      valueInput.addEventListener("input", function () {
-        row.dataset.valueDirty = String(valueInput.value !== valueInput.dataset.previousValue);
+    measurementInputs.forEach(function (measurementInput) {
+      measurementInput.dataset.previousValue = measurementInput.value;
+      measurementInput.addEventListener("input", function () {
+        row.dataset.measurementDirty = String(measurementInputs.some(function (candidate) {
+          return candidate.value !== candidate.dataset.previousValue;
+        }));
       });
-    }
-    async function saveValue(value) {
-      valueInput.dataset.saving = "true";
+    });
+    row.dataset.measurementDirty = "false";
+    async function saveMeasurements() {
+      const measurements = {};
+      measurementInputs.forEach(function (measurementInput) {
+        measurements[measurementInput.dataset.fieldKey] = measurementInput.value;
+      });
+      row.dataset.measurementSaving = "true";
       row.classList.add("is-saving");
       try {
-        const payload = await post(`${baseUrl}/items/${itemId}/value`, { value: value });
-        valueInput.dataset.previousValue = value;
-        row.dataset.valueDirty = "false";
+        const payload = await post(`${baseUrl}/items/${itemId}/measurements`, { measurements: measurements });
+        row.dataset.measurementDirty = "false";
         renderRecord(payload);
       } catch (error) {
-        valueInput.value = valueInput.dataset.previousValue || "";
+        measurementInputs.forEach(function (measurementInput) {
+          measurementInput.value = measurementInput.dataset.previousValue || "";
+        });
         alert(error.message);
       } finally {
-        valueInput.dataset.saving = "false";
+        row.dataset.measurementSaving = "false";
         row.classList.remove("is-saving");
       }
     }
-    if (valueSave && valueInput) valueSave.addEventListener("click", function () { saveValue(valueInput.value); });
-    if (valueClear && valueInput) valueClear.addEventListener("click", function () { valueInput.value = ""; saveValue(""); });
+    if (measurementSave && measurementInputs.length) measurementSave.addEventListener("click", saveMeasurements);
+    if (measurementClear && measurementInputs.length) measurementClear.addEventListener("click", function () {
+      measurementInputs.forEach(function (measurementInput) { measurementInput.value = ""; });
+      saveMeasurements();
+    });
   });
 
   const finalInput = document.getElementById("finalRemark");

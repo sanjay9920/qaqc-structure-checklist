@@ -96,6 +96,13 @@
           <h2 class="checklist-label"><span class="point-number">{{ loop.index }}</span>{{ item.label }}</h2>
           <span class="badge {{ item.status | status_badge }} status-badge">{{ item.status | status_label }}</span>
         </div>
+        {% if item.section or item.check_type or item.acceptance_criteria %}
+          <div class="point-specification">
+            {% if item.section %}<span><strong>Activity:</strong> {{ item.section }}</span>{% endif %}
+            {% if item.check_type %}<span><strong>Check:</strong> {{ item.check_type }}</span>{% endif %}
+            {% if item.acceptance_criteria %}<span><strong>Acceptance:</strong> {{ item.acceptance_criteria }}</span>{% endif %}
+          </div>
+        {% endif %}
         {% if can_edit_equipment %}
           <div class="status-control">
             <label class="status-select-label" for="status_{{ item.item_id }}">Select status</label>
@@ -105,15 +112,25 @@
               {% endfor %}
             </select>
           </div>
-          {% if item.value_enabled %}
-            <div class="value-control">
-              <label class="remark-label" for="value_{{ item.item_id }}">{{ item.value_label }}</label>
-              <input id="value_{{ item.item_id }}" class="form-control value-input" type="text" maxlength="500" value="{{ item.value }}" placeholder="{{ item.value_hint }}">
-              <div class="remark-actions">
-                <button type="button" class="btn btn-sm btn-outline-dark save-value"><i class="bi bi-save" aria-hidden="true"></i> Save Reading</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary clear-value"><i class="bi bi-x-circle" aria-hidden="true"></i> Clear</button>
+          {% if item.measurement_fields %}
+            <div class="measurement-control">
+              <span class="remark-label">Excel Observation / Measurement</span>
+              <div class="measurement-grid {% if item.measurement_fields | length > 4 %}measurement-grid-dense{% endif %}">
+                {% for field in item.measurement_fields %}
+                  <label class="measurement-field" for="measurement_{{ item.item_id }}_{{ field.key }}">
+                    <span>{{ field.label }}</span>
+                    <div class="input-group">
+                      <input id="measurement_{{ item.item_id }}_{{ field.key }}" class="form-control measurement-input" type="text" maxlength="500" data-field-key="{{ field.key }}" value="{{ item.measurements.get(field.key, '') }}" placeholder="{{ field.placeholder }}">
+                      {% if field.unit %}<span class="input-group-text">{{ field.unit }}</span>{% endif %}
+                    </div>
+                  </label>
+                {% endfor %}
               </div>
-              <span class="value-updated-by">{% if item.value_updated_by %}Reading by {{ item.value_updated_by }}{% endif %}</span>
+              <div class="remark-actions">
+                <button type="button" class="btn btn-sm btn-outline-dark save-measurements"><i class="bi bi-save" aria-hidden="true"></i> Save Observation</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary clear-measurements"><i class="bi bi-x-circle" aria-hidden="true"></i> Clear All</button>
+              </div>
+              <span class="measurement-updated-by">{% if item.measurement_updated_by %}Observation by {{ item.measurement_updated_by }}{% endif %}</span>
             </div>
           {% endif %}
           <div class="remark-control">
@@ -129,10 +146,14 @@
             <span class="remark-updated-by">{% if item.remark_updated_by %}Remark by {{ item.remark_updated_by }}{% endif %}</span>
           </div>
         {% endif %}
-        {% if item.value_enabled and not can_edit_equipment %}
-          <div class="recorded-value {% if not item.value %}d-none{% endif %}">
-            <span>{{ item.value_label }}</span>
-            <strong class="recorded-value-text">{{ item.value }}</strong>
+        {% if item.measurement_fields and not can_edit_equipment %}
+          <div class="recorded-values {% if not item.has_measurements %}d-none{% endif %}">
+            {% for field in item.measurement_fields %}
+              <div class="recorded-value-entry {% if not item.measurements.get(field.key) %}d-none{% endif %}" data-field-key="{{ field.key }}">
+                <span>{{ field.label }}</span>
+                <strong><span class="recorded-value-text">{{ item.measurements.get(field.key, '') }}</span>{% if field.unit %} {{ field.unit }}{% endif %}</strong>
+              </div>
+            {% endfor %}
           </div>
         {% endif %}
       </article>
@@ -165,7 +186,7 @@
               <tr>
                 <td>{{ row.updated_date }}<small class="d-block text-muted">{{ row.updated_time }}</small></td>
                 <td>{{ row.item_label }}</td>
-                <td>{% if row.change_type in ["remark", "final_remark"] %}Remark updated{% elif row.change_type == "value" %}Reading updated{% else %}{{ row.previous_status | status_label }} to {{ row.new_status | status_label }}{% endif %}</td>
+                <td>{% if row.change_type in ["remark", "final_remark"] %}Remark updated{% elif row.change_type in ["value", "measurements"] %}Observation updated{% else %}{{ row.previous_status | status_label }} to {{ row.new_status | status_label }}{% endif %}</td>
                 <td>{{ row.updated_by }}</td>
               </tr>
             {% else %}

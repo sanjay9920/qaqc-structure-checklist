@@ -42,44 +42,71 @@ POINT_OVERRIDES = {
     ],
 }
 
-VALUE_TEMPLATE_HINTS = {
-    "ERT": "Enter EP identification, W.G and W.O.G readings in ohms",
-    "VOC Testing": "Enter module Wp, polarity, P-E/N-E/floating voltage and time",
-    "IR": "Enter cable length, continuity and IR readings: R-E, Y-E, B-E, R-Y, Y-B, B-R",
-    "IMP": "Enter identification, IMP reading and time",
-    "VOC": "Enter polarity and P-E, N-E, P-N voltage readings",
-    "LV IR": "Enter LV-1/LV-2/LV-3/LV-4 R-E, Y-E and B-E readings in ohms",
+SPECIAL_MEASUREMENT_FIELDS = {
+    "ERT": [
+        ("identification", "Identification", "", "C", True),
+        ("wg", "W.G", "ohm", "F", False),
+        ("wog", "W.O.G", "ohm", "G", False),
+    ],
+    "VOC Testing": [
+        ("identification", "Identification", "", "C", True),
+        ("module_wp", "Module Wp", "Wp", "E", False),
+        ("polarity", "Polarity", "", "F", False),
+        ("pe_voltage", "P-E", "V", "G", False),
+        ("ne_floating_voltage", "N-E Floating Voltage", "V", "H", False),
+        ("pe_floating_voltage", "P-E Floating Voltage", "V", "I", False),
+        ("time", "Time", "", "J", False),
+    ],
+    "IR": [
+        ("identification", "Identification", "", "C", True),
+        ("cable_length", "Cable Length", "", "E", False),
+        ("continuity", "Continuity", "", "F", False),
+        ("r_e", "R-E", "ohm", "G", False),
+        ("y_e", "Y-E", "ohm", "H", False),
+        ("b_e", "B-E", "ohm", "I", False),
+        ("r_y", "R-Y", "ohm", "J", False),
+        ("y_b", "Y-B", "ohm", "K", False),
+        ("b_r", "B-R", "ohm", "L", False),
+        ("ir_positive", "IR (+ve)", "ohm", "M", False),
+        ("ir_negative", "IR (-ve)", "ohm", "N", False),
+    ],
+    "IMP": [
+        ("identification", "Identification", "", "C", True),
+        ("imp", "IMP", "", "E", False),
+        ("time", "Time", "", "G", False),
+    ],
+    "Inverter Pre-Commisioning": [
+        ("inv_1", "INV-1", "", "G", False),
+        ("inv_2", "INV-2", "", "H", False),
+        ("inv_3", "INV-3", "", "I", False),
+        ("inv_4", "INV-4", "", "J", False),
+    ],
+    "VOC": [
+        ("identification", "Identification", "", "B", True),
+        ("polarity", "Polarity", "", "D", False),
+        ("p_e", "P-E", "V", "E", False),
+        ("n_e", "N-E", "V", "F", False),
+        ("p_n", "P-N", "V", "G", False),
+    ],
+    "LV IR": [
+        ("lv1_r_e", "LV-1 R-E", "ohm", "C", False),
+        ("lv1_y_e", "LV-1 Y-E", "ohm", "D", False),
+        ("lv1_b_e", "LV-1 B-E", "ohm", "E", False),
+        ("lv2_r_e", "LV-2 R-E", "ohm", "F", False),
+        ("lv2_y_e", "LV-2 Y-E", "ohm", "G", False),
+        ("lv2_b_e", "LV-2 B-E", "ohm", "H", False),
+        ("lv3_r_e", "LV-3 R-E", "ohm", "I", False),
+        ("lv3_y_e", "LV-3 Y-E", "ohm", "J", False),
+        ("lv3_b_e", "LV-3 B-E", "ohm", "K", False),
+        ("lv4_r_e", "LV-4 R-E", "ohm", "L", False),
+        ("lv4_y_e", "LV-4 Y-E", "ohm", "M", False),
+        ("lv4_b_e", "LV-4 B-E", "ohm", "N", False),
+    ],
 }
 
-VALUE_KEYWORDS = (
-    "actual value",
-    "bending radius",
-    "cable length",
-    "capacity",
-    "current",
-    "depth",
-    "dga",
-    "dimension",
-    "distance",
-    "earth resistance",
-    "impedance",
-    "initial count",
-    "insulation resistance",
-    "ir test",
-    "megger value",
-    "phase sequence",
-    "polarity",
-    "rating",
-    "resistance",
-    "specific gravity",
-    "temperature",
-    "time",
-    "torque",
-    "type make",
-    "value",
-    "voltage",
-    "width",
-)
+SPECIAL_POINT_ROWS = {
+    "LV IR": list(range(12, 20)),
+}
 
 SPELLING_REPLACEMENTS = {
     "Balast": "Ballast",
@@ -130,21 +157,89 @@ def clean_point(value):
     return text
 
 
-def value_metadata(sheet_name, label):
-    if sheet_name in VALUE_TEMPLATE_HINTS:
-        return {
-            "value_enabled": True,
-            "value_label": "Recorded Value / Reading",
-            "value_hint": VALUE_TEMPLATE_HINTS[sheet_name],
-        }
-    normalized_label = normalized_text(label)
-    if any(keyword in normalized_label for keyword in VALUE_KEYWORDS):
-        return {
-            "value_enabled": True,
-            "value_label": "Recorded Value / Reading",
-            "value_hint": "Enter actual value, reading and unit",
-        }
-    return {"value_enabled": False}
+def matching_column(ws, header_row, labels):
+    for column in range(1, ws.max_column + 1):
+        text = normalized_text(ws.cell(header_row, column).value)
+        if any(label in text for label in labels):
+            return column
+    return None
+
+
+def point_rows(ws):
+    if ws.title in SPECIAL_POINT_ROWS:
+        return SPECIAL_POINT_ROWS[ws.title]
+    header_row, serial_column = find_header(ws)
+    if not header_row:
+        return []
+    return [
+        row
+        for row in range(header_row + 1, ws.max_row + 1)
+        if is_serial(ws.cell(row, serial_column).value)
+    ]
+
+
+def field_schema(key, label, unit="", default=""):
+    hint = f"Enter {label}"
+    if unit:
+        hint += f" ({unit})"
+    return {
+        "key": key,
+        "label": label,
+        "unit": unit,
+        "placeholder": hint,
+        "default": clean_point(default) if default is not None else "",
+    }
+
+
+def point_metadata(ws, row):
+    header_row, _serial_column = find_header(ws)
+    check_type = ""
+    acceptance_criteria = ""
+    section = ""
+    if header_row:
+        check_column = matching_column(ws, header_row, ("type of check",))
+        criteria_column = matching_column(
+            ws, header_row, ("reference document", "acceptance criteria")
+        )
+        if check_column:
+            check_type = clean_point(ws.cell(row, check_column).value)
+        if criteria_column:
+            acceptance_criteria = clean_point(ws.cell(row, criteria_column).value)
+
+    if ws.title == "Commisioning Report Scada":
+        for source_row in range(row, (header_row or row) - 1, -1):
+            candidate = clean_point(ws.cell(source_row, 3).value)
+            if candidate:
+                section = candidate
+                break
+
+    if ws.title in SPECIAL_MEASUREMENT_FIELDS:
+        fields = []
+        for key, label, unit, column_letter, include_default in SPECIAL_MEASUREMENT_FIELDS[
+            ws.title
+        ]:
+            default = ws[f"{column_letter}{row}"].value if include_default else ""
+            fields.append(field_schema(key, label, unit, default))
+    else:
+        is_measurement = "measurement" in normalized_text(check_type)
+        label = "Measured Value / Observation" if is_measurement else "Observation / Result"
+        hint = (
+            "Enter actual measured value with unit"
+            if is_measurement
+            else "Enter observation or result"
+        )
+        fields = [field_schema("observation", label)]
+        fields[0]["placeholder"] = hint
+
+    return {
+        "check_type": check_type,
+        "acceptance_criteria": acceptance_criteria,
+        "section": section,
+        "measurement_fields": fields,
+        "value_enabled": True,
+        "value_label": fields[0]["label"],
+        "value_hint": fields[0]["placeholder"],
+    }
 
 
 def find_header(ws):
@@ -243,6 +338,11 @@ def build_catalog(workbook):
         points = extract_points(ws)
         if not points:
             raise ValueError(f"No checklist points found in sheet: {ws.title}")
+        rows = point_rows(ws)
+        if len(rows) < len(points):
+            raise ValueError(
+                f"Point row mapping failed in {ws.title}: {len(rows)} rows for {len(points)} points"
+            )
         templates.append(
             {
                 "template_id": template_id,
@@ -251,19 +351,19 @@ def build_catalog(workbook):
                 "format_no": extract_format_number(ws),
                 "order": order * 10,
                 "points": [
-                    {
+                    dict(
+                        {
                         "item_id": f"point-{index:03d}",
                         "label": label,
                         "order": index * 10,
-                    }
+                        },
+                        **point_metadata(ws, rows[index - 1]),
+                    )
                     for index, label in enumerate(points, start=1)
                 ],
             }
         )
-    for template in templates:
-        for point in template["points"]:
-            point.update(value_metadata(template["source_sheet"], point["label"]))
-    return {"version": 2, "template_count": len(templates), "templates": templates}
+    return {"version": 3, "template_count": len(templates), "templates": templates}
 
 
 def main():

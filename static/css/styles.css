@@ -382,44 +382,85 @@ body {
   margin-top: 0.85rem;
 }
 
-.value-control {
+.point-specification {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  color: #46536a;
+  background: #f8fafc;
+  border-left: 3px solid #aab5c7;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.measurement-control {
+  display: grid;
+  gap: 0.65rem;
   margin-top: 0.85rem;
   padding: 0.8rem;
   background: #f5f8ff;
   border-left: 3px solid var(--blue);
 }
 
-.value-input {
+.measurement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.65rem;
+}
+
+.measurement-grid-dense {
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+}
+
+.measurement-field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  color: #35445e;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.measurement-input {
   border-color: #b9c8e6;
   border-radius: 8px;
   font-size: 0.95rem;
 }
 
-.value-updated-by {
+.measurement-updated-by {
   color: var(--muted);
   font-size: 0.82rem;
 }
 
-.recorded-value {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+.recorded-values {
+  display: grid;
+  gap: 0;
   margin-top: 0.85rem;
-  padding: 0.7rem 0.8rem;
   background: #f5f8ff;
   border-left: 3px solid var(--blue);
 }
 
-.recorded-value span {
+.recorded-value-entry {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid #dce5f5;
+}
+
+.recorded-value-entry:last-child {
+  border-bottom: 0;
+}
+
+.recorded-value-entry > span {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 700;
 }
 
-.recorded-value strong {
+.recorded-value-entry strong {
   overflow-wrap: anywhere;
   text-align: right;
 }
