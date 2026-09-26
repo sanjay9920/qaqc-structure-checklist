@@ -105,6 +105,17 @@
               {% endfor %}
             </select>
           </div>
+          {% if item.value_enabled %}
+            <div class="value-control">
+              <label class="remark-label" for="value_{{ item.item_id }}">{{ item.value_label }}</label>
+              <input id="value_{{ item.item_id }}" class="form-control value-input" type="text" maxlength="500" value="{{ item.value }}" placeholder="{{ item.value_hint }}">
+              <div class="remark-actions">
+                <button type="button" class="btn btn-sm btn-outline-dark save-value"><i class="bi bi-save" aria-hidden="true"></i> Save Reading</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary clear-value"><i class="bi bi-x-circle" aria-hidden="true"></i> Clear</button>
+              </div>
+              <span class="value-updated-by">{% if item.value_updated_by %}Reading by {{ item.value_updated_by }}{% endif %}</span>
+            </div>
+          {% endif %}
           <div class="remark-control">
             <label class="remark-label" for="remark_{{ item.item_id }}">Remark</label>
             <textarea id="remark_{{ item.item_id }}" class="form-control remark-input" rows="2" maxlength="1000" placeholder="Type remark">{{ item.remark }}</textarea>
@@ -116,6 +127,12 @@
           <div class="checklist-meta">
             <span class="updated-by">{{ item.updated_by or "Not updated" }}</span>
             <span class="remark-updated-by">{% if item.remark_updated_by %}Remark by {{ item.remark_updated_by }}{% endif %}</span>
+          </div>
+        {% endif %}
+        {% if item.value_enabled and not can_edit_equipment %}
+          <div class="recorded-value {% if not item.value %}d-none{% endif %}">
+            <span>{{ item.value_label }}</span>
+            <strong class="recorded-value-text">{{ item.value }}</strong>
           </div>
         {% endif %}
       </article>
@@ -148,7 +165,7 @@
               <tr>
                 <td>{{ row.updated_date }}<small class="d-block text-muted">{{ row.updated_time }}</small></td>
                 <td>{{ row.item_label }}</td>
-                <td>{% if row.change_type in ["remark", "final_remark"] %}Remark updated{% else %}{{ row.previous_status | status_label }} to {{ row.new_status | status_label }}{% endif %}</td>
+                <td>{% if row.change_type in ["remark", "final_remark"] %}Remark updated{% elif row.change_type == "value" %}Reading updated{% else %}{{ row.previous_status | status_label }} to {{ row.new_status | status_label }}{% endif %}</td>
                 <td>{{ row.updated_by }}</td>
               </tr>
             {% else %}

@@ -43,6 +43,20 @@
     }
     const meta = row.querySelector(".remark-updated-by");
     if (meta) meta.textContent = item.remark_updated_by ? "Remark by " + item.remark_updated_by : "";
+    const valueInput = row.querySelector(".value-input");
+    if (valueInput && (valueInput.dataset.saving === "true" || (document.activeElement !== valueInput && row.dataset.valueDirty !== "true"))) {
+      valueInput.value = item.value || "";
+      valueInput.dataset.previousValue = item.value || "";
+      row.dataset.valueDirty = "false";
+    }
+    const valueMeta = row.querySelector(".value-updated-by");
+    if (valueMeta) valueMeta.textContent = item.value_updated_by ? "Reading by " + item.value_updated_by : "";
+    const publicValue = row.querySelector(".recorded-value");
+    const publicValueText = row.querySelector(".recorded-value-text");
+    if (publicValue && publicValueText) {
+      publicValueText.textContent = item.value || "";
+      publicValue.classList.toggle("d-none", !item.value);
+    }
   }
 
   function renderRecord(payload) {
@@ -96,6 +110,9 @@
     const input = row.querySelector(".remark-input");
     const save = row.querySelector(".save-remark");
     const clear = row.querySelector(".clear-remark");
+    const valueInput = row.querySelector(".value-input");
+    const valueSave = row.querySelector(".save-value");
+    const valueClear = row.querySelector(".clear-value");
     if (select) {
       select.dataset.previousStatus = select.value;
       select.addEventListener("change", async function () {
@@ -139,6 +156,31 @@
     }
     if (save && input) save.addEventListener("click", function () { saveRemark(input.value); });
     if (clear && input) clear.addEventListener("click", function () { input.value = ""; saveRemark(""); });
+    if (valueInput) {
+      valueInput.dataset.previousValue = valueInput.value;
+      row.dataset.valueDirty = "false";
+      valueInput.addEventListener("input", function () {
+        row.dataset.valueDirty = String(valueInput.value !== valueInput.dataset.previousValue);
+      });
+    }
+    async function saveValue(value) {
+      valueInput.dataset.saving = "true";
+      row.classList.add("is-saving");
+      try {
+        const payload = await post(`${baseUrl}/items/${itemId}/value`, { value: value });
+        valueInput.dataset.previousValue = value;
+        row.dataset.valueDirty = "false";
+        renderRecord(payload);
+      } catch (error) {
+        valueInput.value = valueInput.dataset.previousValue || "";
+        alert(error.message);
+      } finally {
+        valueInput.dataset.saving = "false";
+        row.classList.remove("is-saving");
+      }
+    }
+    if (valueSave && valueInput) valueSave.addEventListener("click", function () { saveValue(valueInput.value); });
+    if (valueClear && valueInput) valueClear.addEventListener("click", function () { valueInput.value = ""; saveValue(""); });
   });
 
   const finalInput = document.getElementById("finalRemark");

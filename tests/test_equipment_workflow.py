@@ -13,6 +13,7 @@ from checklist_app.equipment_services import (
     update_equipment_final_remark,
     update_equipment_remark,
     update_equipment_status,
+    update_equipment_value,
 )
 from checklist_app.exports import export_all_xlsx, export_equipment_csv
 
@@ -178,6 +179,13 @@ def build_fixture():
         "Ready for next inspection",
         user,
     )
+    cable_laying = update_equipment_value(
+        database,
+        cable_laying["equipment_id"],
+        "point-007",
+        "12 x cable OD",
+        user,
+    )
     return database, user, cable_laying, transformer
 
 
@@ -200,13 +208,16 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(record["counts"]["completed"], 1)
         self.assertEqual(record["counts"]["pending"], 11)
         self.assertEqual(record["checklist"][0]["remark"], "Cable type verified")
-        self.assertEqual(len(get_equipment_history(database, record["equipment_id"])), 3)
+        self.assertEqual(record["checklist"][6]["value"], "12 x cable OD")
+        self.assertTrue(record["checklist"][6]["value_enabled"])
+        self.assertEqual(len(get_equipment_history(database, record["equipment_id"])), 4)
 
         csv_text = export_equipment_csv(
             database, project="100 MW AKOLA SITE", block="1"
         )
         self.assertIn("Cable Laying", csv_text)
         self.assertIn("Cable type verified", csv_text)
+        self.assertIn("12 x cable OD", csv_text)
         workbook = load_workbook(
             export_all_xlsx(database, project="100 MW AKOLA SITE", block="1")
         )
@@ -228,13 +239,38 @@ class EquipmentWorkflowTests(unittest.TestCase):
         page = client.get(f"/equipment/{record['equipment_id']}")
         self.assertEqual(page.status_code, 200)
         self.assertIn(b"Cable Laying", page.data)
+        self.assertIn(b"12 x cable OD", page.data)
         self.assertNotIn(b"Cable type verified", page.data)
 
         payload = client.get(f"/api/equipment/{record['equipment_id']}").get_json()
         self.assertNotIn("remark", payload["checklist"][0])
+        reading_point = next(
+            item for item in payload["checklist"] if item["item_id"] == "point-007"
+        )
+        self.assertEqual(reading_point["value"], "12 x cable OD")
+        self.assertNotIn("value_updated_by", reading_point)
         qr_response = client.get(f"/equipment/{record['equipment_id']}/qr.png")
         self.assertEqual(qr_response.status_code, 200)
         self.assertEqual(qr_response.mimetype, "image/png")
+
+    def test_authorized_user_can_save_and_clear_reading(self):
+        database, _user, record, _transformer = build_fixture()
+        client = build_test_app(database, logged_in=True).test_client()
+        endpoint = f"/api/equipment/{record['equipment_id']}/items/point-007/value"
+
+        response = client.post(endpoint, json={"value": "15 x cable OD"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["checklist"][6]["value"], "15 x cable OD")
+
+        response = client.post(endpoint, json={"value": ""})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["checklist"][6]["value"], "")
+
+        invalid = client.post(
+            f"/api/equipment/{record['equipment_id']}/items/point-001/value",
+            json={"value": "Not allowed"},
+        )
+        self.assertEqual(invalid.status_code, 400)
 
     def test_block_dashboard_contains_catalog_and_tracking(self):
         database, _user, record, _transformer = build_fixture()

@@ -42,6 +42,7 @@ from .equipment_services import (
     update_equipment_final_remark,
     update_equipment_remark,
     update_equipment_status,
+    update_equipment_value,
 )
 from .firebase_client import get_db, initialize_firebase
 from .qr import generate_equipment_qr_bytes, generate_qr_bytes, generate_qr_zip
@@ -335,6 +336,9 @@ def create_app():
                 "item_id": item.get("item_id"),
                 "label": item.get("label"),
                 "status": item.get("status", "pending"),
+                "value_enabled": bool(item.get("value_enabled")),
+                "value_label": item.get("value_label", "Recorded Value / Reading"),
+                "value": item.get("value", "") if item.get("value_enabled") else "",
             }
             for item in equipment.get("checklist", [])
         ]
@@ -841,6 +845,27 @@ def create_app():
                 "Equipment remark update failed for %s/%s", equipment_id, item_id
             )
             return jsonify({"error": "Could not update remark. Please try again."}), 500
+        clear_dashboard_cache()
+        return jsonify(result)
+
+    @app.post("/api/equipment/<equipment_id>/items/<item_id>/value")
+    @login_required
+    def api_update_equipment_item_value(equipment_id, item_id):
+        payload = request.get_json(silent=True) or {}
+        _equipment, error_response, status = load_allowed_equipment(equipment_id)
+        if error_response:
+            return error_response, status
+        try:
+            result = update_equipment_value(
+                db(), equipment_id, item_id, payload.get("value", ""), g.user
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            app.logger.exception(
+                "Equipment reading update failed for %s/%s", equipment_id, item_id
+            )
+            return jsonify({"error": "Could not update reading. Please try again."}), 500
         clear_dashboard_cache()
         return jsonify(result)
 

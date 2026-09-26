@@ -11,7 +11,7 @@ Scan QR -> Open /structure/STR-0001 -> Login -> Load latest checklist -> Update 
 Equipment flow:
 
 ```text
-Project -> Block -> Select checklist type -> Open record -> Update points and remarks -> Scan/download its QR -> Public read-only progress
+Project -> Block -> Select checklist type -> Open record -> Update status, readings and remarks -> Scan/download its QR -> Public read-only progress
 ```
 
 ## 1. Project Folder Structure
@@ -212,11 +212,11 @@ Example document ID:
 100-MW-AKOLA-SITE-BLOCK-1-EQP-CABLE-LAYING-01
 ```
 
-Each document stores its project, block, checklist template, record number, QR URL, point statuses, point remarks, final remark and update user/timestamps.
+Each document stores its project, block, checklist template, record number, QR URL, point statuses, measured values/readings, point remarks, final remark and update user/timestamps.
 
 ### `equipment_history/{auto_id}`
 
-Every equipment status, point remark and final remark change is stored with project, block, checklist name, record number, previous value, new value, user, date and time.
+Every equipment status, measured reading, point remark and final remark change is stored with project, block, checklist name, record number, previous value, new value, user, date and time.
 
 The bundled catalog contains 44 checklist types and 576 points extracted from `3.)Ele chechlist of Block.xlsx`.
 
@@ -286,7 +286,7 @@ To use an electrical/equipment checklist:
 2. Select a block.
 3. Select the checklist type, such as Cable Laying or Transformer Installation.
 4. Enter a record number such as `01` and click `Open`.
-5. Update each point status/remark and download that record's QR.
+5. Update each point status, applicable measured reading and remark, then download that record's QR.
 
 To rebuild the checklist catalog from the source workbook:
 
@@ -414,6 +414,7 @@ GET  /structure/<structure_id>
 GET  /equipment/<equipment_id>
 GET  /equipment/<equipment_id>/qr.png
 GET  /api/equipment/<equipment_id>
+POST /api/equipment/<equipment_id>/items/<item_id>/value
 GET  /admin
 POST /admin/equipment
 POST /admin/equipment/<equipment_id>/delete

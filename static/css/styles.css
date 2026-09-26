@@ -382,6 +382,48 @@ body {
   margin-top: 0.85rem;
 }
 
+.value-control {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  padding: 0.8rem;
+  background: #f5f8ff;
+  border-left: 3px solid var(--blue);
+}
+
+.value-input {
+  border-color: #b9c8e6;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.value-updated-by {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.recorded-value {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  background: #f5f8ff;
+  border-left: 3px solid var(--blue);
+}
+
+.recorded-value span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.recorded-value strong {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .remark-label {
   color: var(--muted);
   font-size: 0.78rem;

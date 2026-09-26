@@ -42,6 +42,45 @@ POINT_OVERRIDES = {
     ],
 }
 
+VALUE_TEMPLATE_HINTS = {
+    "ERT": "Enter EP identification, W.G and W.O.G readings in ohms",
+    "VOC Testing": "Enter module Wp, polarity, P-E/N-E/floating voltage and time",
+    "IR": "Enter cable length, continuity and IR readings: R-E, Y-E, B-E, R-Y, Y-B, B-R",
+    "IMP": "Enter identification, IMP reading and time",
+    "VOC": "Enter polarity and P-E, N-E, P-N voltage readings",
+    "LV IR": "Enter LV-1/LV-2/LV-3/LV-4 R-E, Y-E and B-E readings in ohms",
+}
+
+VALUE_KEYWORDS = (
+    "actual value",
+    "bending radius",
+    "cable length",
+    "capacity",
+    "current",
+    "depth",
+    "dga",
+    "dimension",
+    "distance",
+    "earth resistance",
+    "impedance",
+    "initial count",
+    "insulation resistance",
+    "ir test",
+    "megger value",
+    "phase sequence",
+    "polarity",
+    "rating",
+    "resistance",
+    "specific gravity",
+    "temperature",
+    "time",
+    "torque",
+    "type make",
+    "value",
+    "voltage",
+    "width",
+)
+
 SPELLING_REPLACEMENTS = {
     "Balast": "Ballast",
     "Lighteng": "Lighting",
@@ -89,6 +128,23 @@ def clean_point(value):
     for old, new in SPELLING_REPLACEMENTS.items():
         text = text.replace(old, new)
     return text
+
+
+def value_metadata(sheet_name, label):
+    if sheet_name in VALUE_TEMPLATE_HINTS:
+        return {
+            "value_enabled": True,
+            "value_label": "Recorded Value / Reading",
+            "value_hint": VALUE_TEMPLATE_HINTS[sheet_name],
+        }
+    normalized_label = normalized_text(label)
+    if any(keyword in normalized_label for keyword in VALUE_KEYWORDS):
+        return {
+            "value_enabled": True,
+            "value_label": "Recorded Value / Reading",
+            "value_hint": "Enter actual value, reading and unit",
+        }
+    return {"value_enabled": False}
 
 
 def find_header(ws):
@@ -204,7 +260,10 @@ def build_catalog(workbook):
                 ],
             }
         )
-    return {"version": 1, "template_count": len(templates), "templates": templates}
+    for template in templates:
+        for point in template["points"]:
+            point.update(value_metadata(template["source_sheet"], point["label"]))
+    return {"version": 2, "template_count": len(templates), "templates": templates}
 
 
 def main():

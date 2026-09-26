@@ -43,6 +43,9 @@ def build_default_equipment_checklist(template):
             "remark": "",
             "remark_updated_at": None,
             "remark_updated_by": None,
+            "value": "",
+            "value_updated_at": None,
+            "value_updated_by": None,
             "updated_at": None,
             "updated_by": None,
         }
@@ -62,6 +65,9 @@ def sync_equipment_points(ref, data, template):
                 "remark": "",
                 "remark_updated_at": None,
                 "remark_updated_by": None,
+                "value": "",
+                "value_updated_at": None,
+                "value_updated_by": None,
                 "updated_at": None,
                 "updated_by": None,
             }
@@ -88,6 +94,12 @@ def build_equipment_view(equipment_id, data, template):
                 "remark": existing.get("remark", ""),
                 "remark_updated_at": existing.get("remark_updated_at"),
                 "remark_updated_by": existing.get("remark_updated_by"),
+                "value_enabled": bool(item.get("value_enabled")),
+                "value_label": item.get("value_label", "Recorded Value / Reading"),
+                "value_hint": item.get("value_hint", "Enter measured value or reading"),
+                "value": existing.get("value", ""),
+                "value_updated_at": existing.get("value_updated_at"),
+                "value_updated_by": existing.get("value_updated_by"),
                 "updated_at": existing.get("updated_at"),
                 "updated_by": existing.get("updated_by"),
             }
@@ -227,7 +239,9 @@ def build_equipment_summary(records):
     }
 
 
-def _equipment_item_update(db, equipment_id, item_id, user, status=None, remark=None):
+def _equipment_item_update(
+    db, equipment_id, item_id, user, status=None, remark=None, value=None
+):
     equipment_id = normalize_equipment_id(equipment_id)
     ref = db.collection("equipment_checklists").document(equipment_id)
     snap = ref.get()
@@ -240,16 +254,24 @@ def _equipment_item_update(db, equipment_id, item_id, user, status=None, remark=
     item = checklist[item_id] or {}
     previous_status = item.get("status", "pending")
     previous_remark = item.get("remark", "")
+    previous_value = item.get("value", "")
     timestamp_utc = now_utc()
     timestamp_local = now_local()
     email = user.get("email") or "unknown"
-    change_type = "status" if status is not None else "remark"
+    if status is not None:
+        change_type = "status"
+    elif remark is not None:
+        change_type = "remark"
+    elif value is not None:
+        change_type = "value"
+    else:
+        raise ValueError("No checklist update supplied.")
 
     if status is not None:
         if status not in STATUS_OPTIONS:
             raise ValueError("Invalid checklist status.")
         item.update({"status": status, "updated_at": timestamp_utc, "updated_by": email})
-    else:
+    elif remark is not None:
         remark = (remark or "").strip()
         if len(remark) > 1000:
             raise ValueError("Remark must be 1000 characters or less.")
@@ -260,12 +282,39 @@ def _equipment_item_update(db, equipment_id, item_id, user, status=None, remark=
                 "remark_updated_by": email,
             }
         )
+    else:
+        template = get_equipment_template(data.get("template_id"))
+        template_point = next(
+            (
+                point
+                for point in (template or {}).get("points", [])
+                if point.get("item_id") == item_id
+            ),
+            None,
+        )
+        if not template_point or not template_point.get("value_enabled"):
+            raise ValueError("This checklist point does not accept a reading.")
+        value = (value or "").strip()
+        if len(value) > 500:
+            raise ValueError("Recorded value must be 500 characters or less.")
+        item.update(
+            {
+                "value": value,
+                "value_updated_at": timestamp_utc,
+                "value_updated_by": email,
+            }
+        )
     checklist[item_id] = item
     ref.update(
         {"checklist": checklist, "updated_at": timestamp_utc, "updated_by": email}
     )
 
-    changed = previous_status != status if status is not None else previous_remark != remark
+    if status is not None:
+        changed = previous_status != status
+    elif remark is not None:
+        changed = previous_remark != remark
+    else:
+        changed = previous_value != value
     if changed:
         db.collection("equipment_history").add(
             {
@@ -281,7 +330,9 @@ def _equipment_item_update(db, equipment_id, item_id, user, status=None, remark=
                 "previous_status": previous_status,
                 "new_status": status if status is not None else previous_status,
                 "previous_remark": previous_remark,
-                "new_remark": remark if status is None else previous_remark,
+                "new_remark": remark if remark is not None else previous_remark,
+                "previous_value": previous_value,
+                "new_value": value if value is not None else previous_value,
                 "updated_by": email,
                 "updated_by_uid": user.get("uid"),
                 "updated_at": timestamp_utc,
@@ -299,6 +350,10 @@ def update_equipment_status(db, equipment_id, item_id, status, user):
 
 def update_equipment_remark(db, equipment_id, item_id, remark, user):
     return _equipment_item_update(db, equipment_id, item_id, user, remark=remark)
+
+
+def update_equipment_value(db, equipment_id, item_id, value, user):
+    return _equipment_item_update(db, equipment_id, item_id, user, value=value)
 
 
 def update_equipment_final_remark(db, equipment_id, remark, user):
@@ -340,6 +395,8 @@ def update_equipment_final_remark(db, equipment_id, remark, user):
                 "new_status": "",
                 "previous_remark": previous_remark,
                 "new_remark": remark,
+                "previous_value": "",
+                "new_value": "",
                 "updated_by": email,
                 "updated_by_uid": user.get("uid"),
                 "updated_at": timestamp_utc,
