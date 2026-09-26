@@ -1,11 +1,17 @@
-# Structure QR Code Checklist Management System
+# QA/QC QR Checklist Management System
 
-This is a complete Python + Flask + Firebase Firestore project for structure-specific QR checklist tracking.
+This is a Python + Flask + Firebase Firestore system for structure, electrical and equipment checklist tracking.
 
 Flow:
 
 ```text
 Scan QR -> Open /structure/STR-0001 -> Login -> Load latest checklist -> Update status -> Save to Firestore -> Other users see latest status
+```
+
+Equipment flow:
+
+```text
+Project -> Block -> Select checklist type -> Open record -> Update points and remarks -> Scan/download its QR -> Public read-only progress
 ```
 
 ## 1. Project Folder Structure
@@ -29,13 +35,18 @@ New project/
     auth.py
     config.py
     exports.py
+    equipment_catalog.py
+    equipment_services.py
     firebase_client.py
     qr.py
     services.py
+    data/
+      equipment_catalog.json
   templates/
     base.html
     login.html
     not_found.html
+    equipment.html
     structure.html
     admin/
       checklist_items.html
@@ -47,7 +58,12 @@ New project/
       styles.css
     js/
       login.js
+      equipment.js
       structure.js
+  scripts/
+    extract_equipment_catalog.py
+  tests/
+    test_equipment_workflow.py
 ```
 
 ## 2. Firebase Setup Instructions
@@ -188,6 +204,22 @@ na = Not Applicable
 }
 ```
 
+### `equipment_checklists/{equipment_id}`
+
+Example document ID:
+
+```text
+100-MW-AKOLA-SITE-BLOCK-1-EQP-CABLE-LAYING-01
+```
+
+Each document stores its project, block, checklist template, record number, QR URL, point statuses, point remarks, final remark and update user/timestamps.
+
+### `equipment_history/{auto_id}`
+
+Every equipment status, point remark and final remark change is stored with project, block, checklist name, record number, previous value, new value, user, date and time.
+
+The bundled catalog contains 44 checklist types and 576 points extracted from `3.)Ele chechlist of Block.xlsx`.
+
 ## 5. Environment File
 
 Create `.env`:
@@ -246,6 +278,22 @@ Structure page:
 
 ```text
 http://localhost:5000/structure/STR-0001
+```
+
+To use an electrical/equipment checklist:
+
+1. Open a project dashboard.
+2. Select a block.
+3. Select the checklist type, such as Cable Laying or Transformer Installation.
+4. Enter a record number such as `01` and click `Open`.
+5. Update each point status/remark and download that record's QR.
+
+To rebuild the checklist catalog from the source workbook:
+
+```powershell
+python scripts\extract_equipment_catalog.py `
+  "C:\path\to\3.)Ele chechlist of Block.xlsx" `
+  "checklist_app\data\equipment_catalog.json"
 ```
 
 ## 7. Generate QR Codes
@@ -363,7 +411,12 @@ Now generate QR codes again from `/admin` so each QR points to the public URL.
 GET  /login
 GET  /logout
 GET  /structure/<structure_id>
+GET  /equipment/<equipment_id>
+GET  /equipment/<equipment_id>/qr.png
+GET  /api/equipment/<equipment_id>
 GET  /admin
+POST /admin/equipment
+POST /admin/equipment/<equipment_id>/delete
 POST /admin/structures
 POST /admin/structures/bulk
 GET  /admin/structures/<structure_id>
@@ -375,6 +428,8 @@ POST /admin/checklist-items/<item_id>/remove
 GET  /admin/history
 GET  /admin/export/structures.csv
 GET  /admin/export/history.csv
+GET  /admin/export/equipment.csv
+GET  /admin/export/equipment-history.csv
 GET  /admin/export/all.xlsx
 ```
 
@@ -382,6 +437,8 @@ GET  /admin/export/all.xlsx
 
 - Firestore data is persistent after the browser closes.
 - Every status change writes a row into `history`.
-- The structure page refreshes latest data every 5 seconds so another scanner sees updates without needing a manual refresh.
+- Equipment checklist changes write to `equipment_history`.
+- Structure and equipment pages refresh latest data every 5 seconds so another scanner sees updates without manual refresh.
+- Public QR users can view progress without login. Editing requires project access.
 - For production, use HTTPS and set `COOKIE_SECURE=true`.
 - Keep `serviceAccountKey.json` out of source control.

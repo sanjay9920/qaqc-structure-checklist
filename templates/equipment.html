@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}QA/QC - {{ equipment.template_name }}{% endblock %}
+
+{% block content %}
+<div class="structure-shell">
+  <section class="structure-header equipment-header">
+    <div>
+      <p class="eyebrow mb-1">Quality Department Equipment Checklist</p>
+      <p class="dashboard-scope mb-1">
+        {{ equipment.project_display_name or (equipment.project | scope_name) }} / Block {{ equipment.block | block_label }}
+      </p>
+      <h1 class="equipment-title mb-1">{{ equipment.template_name }}</h1>
+      <p class="equipment-record-id mb-0">Record {{ equipment.record_number }} · {{ equipment.format_no }}</p>
+    </div>
+    <div class="structure-header-actions">
+      {% if can_edit_equipment %}
+        <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=equipment.project, block=equipment.block) }}">
+          <i class="bi bi-speedometer2" aria-hidden="true"></i>
+          Block {{ equipment.block | block_label }}
+        </a>
+      {% elif not current_user %}
+        <a class="btn btn-primary" href="{{ url_for('login', next=request.path) }}">
+          <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+          Login to Update
+        </a>
+      {% else %}
+        <span class="readonly-pill"><i class="bi bi-eye" aria-hidden="true"></i> Read only</span>
+      {% endif %}
+      <div class="progress-ring" aria-label="Progress">
+        <span id="progressValue">{{ equipment.counts.progress }}%</span>
+      </div>
+    </div>
+  </section>
+
+  {% if not can_edit_equipment %}
+    <section class="public-view-banner" aria-label="Public view">
+      <i class="bi bi-shield-check" aria-hidden="true"></i>
+      <span>Public read-only view. Checklist update ke liye login access required hai.</span>
+    </section>
+  {% endif %}
+
+  <section class="structure-info-grid" aria-label="Equipment information">
+    <div class="structure-info-tile">
+      <span>Project</span>
+      <strong>{{ equipment.project_display_name or (equipment.project | scope_name) }}</strong>
+    </div>
+    <div class="structure-info-tile">
+      <span>Block</span>
+      <strong>{{ equipment.block | block_label }}</strong>
+    </div>
+    <div class="structure-info-tile">
+      <span>Record No.</span>
+      <strong>{{ equipment.record_number }}</strong>
+    </div>
+  </section>
+
+  <section class="summary-grid" aria-label="Checklist summary">
+    <div class="summary-tile">
+      <span class="summary-label">Completed</span>
+      <strong><span id="completedCount">{{ equipment.counts.completed }}</span> / <span id="totalCountA">{{ equipment.counts.total }}</span></strong>
+    </div>
+    <div class="summary-tile">
+      <span class="summary-label">Pending</span>
+      <strong><span id="pendingCount">{{ equipment.counts.pending }}</span> / <span id="totalCountB">{{ equipment.counts.total }}</span></strong>
+    </div>
+    <div class="summary-tile">
+      <span class="summary-label">N/A</span>
+      <strong><span id="naCount">{{ equipment.counts.na }}</span></strong>
+    </div>
+  </section>
+
+  <div class="progress mb-3" role="progressbar" aria-valuenow="{{ equipment.counts.progress }}" aria-valuemin="0" aria-valuemax="100">
+    <div id="progressBar" class="progress-bar" style="width: {{ equipment.counts.progress }}%"></div>
+  </div>
+
+  <section class="structure-qr-panel" aria-label="Equipment QR code">
+    <div class="structure-qr-copy">
+      <p class="eyebrow mb-1">Equipment QR</p>
+      <h2 class="h5 mb-1">Scan or download this checklist QR</h2>
+      <code>{{ url_for('equipment_page', equipment_id=equipment.equipment_id, _external=True) }}</code>
+    </div>
+    <div class="structure-qr-actions">
+      <img src="{{ url_for('equipment_qr', equipment_id=equipment.equipment_id) }}" alt="QR code for {{ equipment.template_name }} {{ equipment.record_number }}">
+      <a class="btn btn-primary" href="{{ url_for('equipment_qr', equipment_id=equipment.equipment_id, download=1) }}" download="{{ equipment.equipment_id }}.png">
+        <i class="bi bi-download" aria-hidden="true"></i>
+        Download QR
+      </a>
+    </div>
+  </section>
+
+  <section id="checklistItems" class="checklist-list">
+    {% for item in equipment.checklist %}
+      <article class="checklist-item" data-item-id="{{ item.item_id }}">
+        <div class="checklist-item-main">
+          <h2 class="checklist-label"><span class="point-number">{{ loop.index }}</span>{{ item.label }}</h2>
+          <span class="badge {{ item.status | status_badge }} status-badge">{{ item.status | status_label }}</span>
+        </div>
+        {% if can_edit_equipment %}
+          <div class="status-control">
+            <label class="status-select-label" for="status_{{ item.item_id }}">Select status</label>
+            <select id="status_{{ item.item_id }}" class="form-select status-select" aria-label="{{ item.label }} status">
+              {% for value, label in status_options.items() %}
+                <option value="{{ value }}" {% if item.status == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="remark-control">
+            <label class="remark-label" for="remark_{{ item.item_id }}">Remark</label>
+            <textarea id="remark_{{ item.item_id }}" class="form-control remark-input" rows="2" maxlength="1000" placeholder="Type remark">{{ item.remark }}</textarea>
+            <div class="remark-actions">
+              <button type="button" class="btn btn-sm btn-outline-dark save-remark"><i class="bi bi-save" aria-hidden="true"></i> Save</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary clear-remark"><i class="bi bi-x-circle" aria-hidden="true"></i> Clear</button>
+            </div>
+          </div>
+          <div class="checklist-meta">
+            <span class="updated-by">{{ item.updated_by or "Not updated" }}</span>
+            <span class="remark-updated-by">{% if item.remark_updated_by %}Remark by {{ item.remark_updated_by }}{% endif %}</span>
+          </div>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+
+  {% if can_edit_equipment %}
+    <section class="final-remark-panel" aria-label="Final remark">
+      <label class="remark-label" for="finalRemark">Final Remark</label>
+      <textarea id="finalRemark" class="form-control final-remark-input" rows="3" maxlength="2000" placeholder="Type final remark">{{ equipment.final_remark }}</textarea>
+      <div class="remark-actions">
+        <button id="saveFinalRemark" type="button" class="btn btn-sm btn-primary"><i class="bi bi-save" aria-hidden="true"></i> Save Final Remark</button>
+        <button id="clearFinalRemark" type="button" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle" aria-hidden="true"></i> Clear</button>
+      </div>
+      <p id="finalRemarkMeta" class="checklist-meta mb-0">
+        {% if equipment.final_remark_updated_by %}Final remark by {{ equipment.final_remark_updated_by }}{% else %}No final remark saved{% endif %}
+      </p>
+    </section>
+
+    <section class="admin-panel equipment-history-panel mt-3">
+      <div class="section-title-row">
+        <h2 class="h5 mb-0">Recent update history</h2>
+        <span class="dashboard-scope">Latest {{ equipment_history | length }} changes</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Date</th><th>Point</th><th>Change</th><th>Updated by</th></tr></thead>
+          <tbody>
+            {% for row in equipment_history %}
+              <tr>
+                <td>{{ row.updated_date }}<small class="d-block text-muted">{{ row.updated_time }}</small></td>
+                <td>{{ row.item_label }}</td>
+                <td>{% if row.change_type in ["remark", "final_remark"] %}Remark updated{% else %}{{ row.previous_status | status_label }} to {{ row.new_status | status_label }}{% endif %}</td>
+                <td>{{ row.updated_by }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="text-center text-muted py-3">No changes recorded.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.equipmentId = {{ equipment.equipment_id | tojson }};
+  window.statusLabels = {{ status_options | tojson }};
+  window.canEditEquipment = {{ can_edit_equipment | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/equipment.js') }}"></script>
+{% endblock %}

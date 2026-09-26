@@ -22,7 +22,7 @@
         Create or select a project
       {% endif %}
     </p>
-    <p class="dashboard-tagline mb-0">Professional structure inspection, punch point and commissioning checklist status.</p>
+    <p class="dashboard-tagline mb-0">Professional QA/QC inspection, equipment, punch point and commissioning status.</p>
   </div>
   {% if project %}
     <div class="d-flex flex-wrap gap-2">
@@ -38,7 +38,11 @@
       </a>
       <a class="btn btn-outline-dark" href="{{ url_for('admin_export_structures_csv', project=project, block=block) }}">
         <i class="bi bi-filetype-csv" aria-hidden="true"></i>
-        CSV
+        Structure CSV
+      </a>
+      <a class="btn btn-outline-dark" href="{{ url_for('admin_export_equipment_csv', project=project, block=block) }}">
+        <i class="bi bi-filetype-csv" aria-hidden="true"></i>
+        Equipment CSV
       </a>
       <a class="btn btn-outline-dark" href="{{ url_for('admin_export_history_csv', project=project, block=block) }}">
         <i class="bi bi-clock-history" aria-hidden="true"></i>
@@ -173,12 +177,12 @@
         class="mt-3"
         onsubmit="return confirm('Delete this project from the dropdown?')"
       >
-        {% if project_summary.total_structures %}
+        {% if project_summary.total_structures or equipment_summary.total_records %}
           <button class="btn btn-outline-danger" type="submit" disabled>
             <i class="bi bi-trash" aria-hidden="true"></i>
             Delete Project
           </button>
-          <p class="dashboard-scope mb-0 mt-2">Delete is available only when this project has 0 structures.</p>
+          <p class="dashboard-scope mb-0 mt-2">Delete is available only when this project has 0 structures and 0 equipment checklists.</p>
         {% else %}
           <button class="btn btn-outline-danger" type="submit">
             <i class="bi bi-trash" aria-hidden="true"></i>
@@ -250,6 +254,35 @@
         <small id="projectPendingPoints">{{ project_summary.checklist_pending }} / {{ project_summary.checklist_total }} points</small>
       </div>
     {% endif %}
+  </section>
+
+  <section class="equipment-overview" aria-labelledby="equipmentOverviewTitle">
+    <div class="section-title-row">
+      <div>
+        <p class="eyebrow mb-1">Electrical and equipment</p>
+        <h2 id="equipmentOverviewTitle" class="h5 mb-0">Checklist status</h2>
+      </div>
+      <span class="dashboard-scope">{% if block %}Block {{ block | block_label }}{% else %}All blocks{% endif %}</span>
+    </div>
+    <div class="stat-grid equipment-stat-grid">
+      <div class="stat-tile">
+        <span>Total checklists</span>
+        <strong id="equipmentTotalRecords">{{ equipment_summary.total_records }}</strong>
+      </div>
+      <div class="stat-tile">
+        <span>Completed checklists</span>
+        <strong id="equipmentCompletedRecords">{{ equipment_summary.completed_records }}</strong>
+      </div>
+      <div class="stat-tile">
+        <span>Pending checklists</span>
+        <strong id="equipmentPendingRecords">{{ equipment_summary.pending_records }}</strong>
+      </div>
+      <div class="stat-tile">
+        <span>Point progress</span>
+        <strong><span id="equipmentProgress">{{ equipment_summary.progress }}</span>%</strong>
+        <small><span id="equipmentCompletedPoints">{{ equipment_summary.completed_points }}</span> completed / <span id="equipmentPendingPoints">{{ equipment_summary.pending_points }}</span> pending / <span id="equipmentTotalPoints">{{ equipment_summary.total_points }}</span> total</small>
+      </div>
+    </div>
   </section>
 
   {% if not block %}
@@ -382,6 +415,95 @@
   {% endif %}
 
   {% if block %}
+    <section class="admin-panel equipment-create-panel">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow mb-1">Excel checklist library</p>
+          <h2 class="h5 mb-1">Open equipment / activity checklist</h2>
+          <p class="dashboard-scope mb-0">Select checklist type and record number for Block {{ block | block_label }}.</p>
+        </div>
+        <span class="catalog-count">{{ equipment_templates | length }} types</span>
+      </div>
+      <form action="{{ url_for('admin_create_equipment') }}" method="post" class="row g-2 align-items-end">
+        <input type="hidden" name="project" value="{{ project }}">
+        <input type="hidden" name="block" value="{{ block }}">
+        <div class="col-12 col-lg-8">
+          <label for="equipment_template_id" class="form-label">Checklist type</label>
+          <select id="equipment_template_id" name="template_id" class="form-select" required>
+            <option value="">Select checklist</option>
+            {% for template in equipment_templates %}
+              <option value="{{ template.template_id }}">{{ template.name }} | {{ template.format_no }} | {{ template.point_count }} points</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-7 col-lg-2">
+          <label for="equipment_record_number" class="form-label">Record No.</label>
+          <input id="equipment_record_number" name="record_number" class="form-control" value="01" maxlength="30" required>
+        </div>
+        <div class="col-5 col-lg-2 d-grid">
+          <button class="btn btn-primary" type="submit">
+            <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+            Open
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="admin-table equipment-records-panel mb-3" aria-labelledby="equipmentRecordsTitle">
+      <div class="equipment-table-heading">
+        <div>
+          <p class="eyebrow mb-1">Block {{ block | block_label }}</p>
+          <h2 id="equipmentRecordsTitle" class="h5 mb-0">Created equipment checklists</h2>
+        </div>
+        <a class="btn btn-sm btn-outline-dark" href="{{ url_for('admin_export_equipment_history_csv', project=project, block=block) }}">
+          <i class="bi bi-clock-history" aria-hidden="true"></i>
+          Equipment History CSV
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Checklist</th>
+              <th>Record</th>
+              <th>Completed points</th>
+              <th>Pending points</th>
+              <th>Progress</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="equipmentTableBody">
+            {% for record in equipment_records %}
+              <tr>
+                <td>
+                  <strong>{{ record.template_name }}</strong>
+                  <small class="d-block text-muted">{{ record.format_no }}</small>
+                </td>
+                <td>{{ record.record_number }}</td>
+                <td>{{ record.counts.completed }} / {{ record.counts.total }}</td>
+                <td>{{ record.counts.pending }} / {{ record.counts.total }}</td>
+                <td>
+                  <div class="progress table-progress"><div class="progress-bar" style="width: {{ record.counts.progress }}%"></div></div>
+                  <span class="small text-muted">{{ record.counts.progress }}%</span>
+                </td>
+                <td class="text-end">
+                  <div class="table-actions">
+                    <a class="btn btn-sm btn-outline-dark" href="{{ url_for('equipment_page', equipment_id=record.equipment_id) }}"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
+                    <a class="btn btn-sm btn-outline-dark" href="{{ url_for('equipment_qr', equipment_id=record.equipment_id, download=1) }}" download="{{ record.equipment_id }}.png"><i class="bi bi-download" aria-hidden="true"></i> QR</a>
+                    <form action="{{ url_for('admin_delete_equipment', equipment_id=record.equipment_id) }}" method="post" class="delete-equipment-form d-inline" data-equipment-id="{{ record.equipment_id }}">
+                      <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-4">No equipment checklist created in this block.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="admin-panel block-open-panel">
       <div class="section-title-row">
         <div>

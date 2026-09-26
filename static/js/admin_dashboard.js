@@ -1,6 +1,7 @@
 (function () {
   const config = window.adminDashboard || {};
   const tableBody = document.getElementById("structuresTableBody");
+  const equipmentTableBody = document.getElementById("equipmentTableBody");
   const blockSummaryBody = document.getElementById("blockSummaryBody");
   const searchForm = document.querySelector(".search-row");
   const totalBlocksEl = document.getElementById("totalBlocks");
@@ -27,6 +28,14 @@
   const projectRenameSaveButton = document.getElementById("saveProjectName");
   const blockOpenSelect = document.getElementById("block_open_select");
   const structureOpenSelect = document.getElementById("structure_open_select");
+  const equipmentRecordInput = document.getElementById("equipment_record_number");
+  const equipmentTotalRecordsEl = document.getElementById("equipmentTotalRecords");
+  const equipmentCompletedRecordsEl = document.getElementById("equipmentCompletedRecords");
+  const equipmentPendingRecordsEl = document.getElementById("equipmentPendingRecords");
+  const equipmentProgressEl = document.getElementById("equipmentProgress");
+  const equipmentCompletedPointsEl = document.getElementById("equipmentCompletedPoints");
+  const equipmentPendingPointsEl = document.getElementById("equipmentPendingPoints");
+  const equipmentTotalPointsEl = document.getElementById("equipmentTotalPoints");
 
   if (!config.apiUrl || !searchForm) return;
 
@@ -90,6 +99,10 @@
 
   function structureUrl(structureId) {
     return `/admin/structures/${encodeURIComponent(structureId)}`;
+  }
+
+  function equipmentUrl(equipmentId) {
+    return `/equipment/${encodeURIComponent(equipmentId)}`;
   }
 
   function dashboardUrl(project, block) {
@@ -176,6 +189,17 @@
     if (selectedBlockLabelEl && summary.selected_block) {
       selectedBlockLabelEl.textContent = blockLabel(summary.selected_block);
     }
+  }
+
+  function renderEquipmentSummary(summary) {
+    if (!summary) return;
+    if (equipmentTotalRecordsEl) equipmentTotalRecordsEl.textContent = summary.total_records || 0;
+    if (equipmentCompletedRecordsEl) equipmentCompletedRecordsEl.textContent = summary.completed_records || 0;
+    if (equipmentPendingRecordsEl) equipmentPendingRecordsEl.textContent = summary.pending_records || 0;
+    if (equipmentProgressEl) equipmentProgressEl.textContent = summary.progress || 0;
+    if (equipmentCompletedPointsEl) equipmentCompletedPointsEl.textContent = summary.completed_points || 0;
+    if (equipmentPendingPointsEl) equipmentPendingPointsEl.textContent = summary.pending_points || 0;
+    if (equipmentTotalPointsEl) equipmentTotalPointsEl.textContent = summary.total_points || 0;
   }
 
   function renderBlockSummary(project, blocks) {
@@ -291,6 +315,44 @@
     `;
   }
 
+  function renderEquipmentRow(record) {
+    const counts = record.counts || {};
+    const equipmentId = record.equipment_id || "";
+    const progress = counts.progress || 0;
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(record.template_name || "Equipment checklist")}</strong>
+          <small class="d-block text-muted">${escapeHtml(record.format_no || "")}</small>
+        </td>
+        <td>${escapeHtml(record.record_number || "")}</td>
+        <td>${counts.completed || 0} / ${counts.total || 0}</td>
+        <td>${counts.pending || 0} / ${counts.total || 0}</td>
+        <td>
+          <div class="progress table-progress"><div class="progress-bar" style="width: ${progress}%"></div></div>
+          <span class="small text-muted">${progress}%</span>
+        </td>
+        <td class="text-end">
+          <div class="table-actions">
+            <a class="btn btn-sm btn-outline-dark" href="${equipmentUrl(equipmentId)}"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
+            <a class="btn btn-sm btn-outline-dark" href="${equipmentUrl(equipmentId)}/qr.png?download=1" download="${escapeHtml(equipmentId)}.png"><i class="bi bi-download" aria-hidden="true"></i> QR</a>
+            <form action="/admin/equipment/${encodeURIComponent(equipmentId)}/delete" method="post" class="delete-equipment-form d-inline" data-equipment-id="${escapeHtml(equipmentId)}">
+              <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  function renderEquipmentRecords(records) {
+    if (!equipmentTableBody) return;
+    const rows = Array.isArray(records) ? records : [];
+    equipmentTableBody.innerHTML = rows.length
+      ? rows.map(renderEquipmentRow).join("")
+      : `<tr><td colspan="6" class="text-center text-muted py-4">No equipment checklist created in this block.</td></tr>`;
+  }
+
   function renderDashboard(payload) {
     const summary = payload.project_summary || {};
     renderProjectOptions(payload.project_records || payload.projects, payload.project || "");
@@ -298,6 +360,8 @@
     renderProjectSummary(summary);
     renderBlockSummary(payload.project || "", summary.blocks || []);
     renderDashboardScope(payload);
+    renderEquipmentSummary(payload.equipment_summary || {});
+    renderEquipmentRecords(payload.equipment_records || []);
 
     if (!tableBody) return;
 
@@ -378,6 +442,35 @@
         if (createBlockInput) createBlockInput.value = blockLabel(deleted.block);
         if (createIdInput) createIdInput.value = structureNumber(deleted.structure_id || structureId);
 
+        await refreshDashboard();
+      } catch (error) {
+        alert(error.message || "Delete failed.");
+        if (button) button.disabled = false;
+      }
+    });
+  }
+
+  if (equipmentTableBody) {
+    equipmentTableBody.addEventListener("submit", async function (event) {
+      const form = event.target.closest(".delete-equipment-form");
+      if (!form) return;
+
+      event.preventDefault();
+      const equipmentId = form.dataset.equipmentId;
+      if (!confirm(`Delete ${equipmentId} checklist data and history?`)) return;
+
+      const button = form.querySelector("button");
+      if (button) button.disabled = true;
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          headers: { "Accept": "application/json", "X-Requested-With": "fetch" }
+        });
+        const payload = await readJson(response);
+        if (!response.ok) throw new Error((payload && payload.error) || "Delete failed.");
+        if (equipmentRecordInput && payload.deleted) {
+          equipmentRecordInput.value = payload.deleted.record_number || "01";
+        }
         await refreshDashboard();
       } catch (error) {
         alert(error.message || "Delete failed.");

@@ -454,6 +454,16 @@ def delete_project(db, project_id):
             f"Project has {structure_count} structures. Delete those structures first."
         )
 
+    equipment_count = 0
+    for snap in db.collection("equipment_checklists").stream():
+        data = snap.to_dict() or {}
+        if normalize_project(data.get("project")) == project_id:
+            equipment_count += 1
+    if equipment_count:
+        raise ValueError(
+            f"Project has {equipment_count} equipment checklists. Delete those checklists first."
+        )
+
     ref = db.collection("projects").document(project_id)
     if ref.get().exists:
         ref.delete()

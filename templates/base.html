@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="Quality SIMS">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>{% block title %}Quality Department - Structure Inspection Management System{% endblock %}</title>
+    <title>{% block title %}Quality Department - Inspection Management System{% endblock %}</title>
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
@@ -21,7 +21,7 @@
       <div class="container">
         <a class="navbar-brand app-brand" href="{{ url_for('admin_dashboard') if current_user else url_for('login') }}">
           <span class="app-brand-title">Quality Department</span>
-          <span class="app-brand-subtitle">Structure Inspection Management System</span>
+          <span class="app-brand-subtitle">QA/QC Inspection Management System</span>
         </a>
         <button id="installPwaButton" class="btn btn-sm btn-outline-primary d-none ms-auto me-2" type="button">
           <i class="bi bi-phone" aria-hidden="true"></i>

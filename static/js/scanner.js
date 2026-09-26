@@ -18,17 +18,18 @@
     statusEl.classList.add(tone || "text-muted");
   }
 
-  function structureUrlFromValue(value) {
+  function checklistUrlFromValue(value) {
     const rawValue = String(value || "").trim();
     if (!rawValue) return "";
 
     try {
       const url = new URL(rawValue);
-      const marker = "/structure/";
-      const index = url.pathname.indexOf(marker);
-      if (index >= 0) {
-        const structureId = decodeURIComponent(url.pathname.slice(index + marker.length));
-        return structureId ? `/structure/${encodeURIComponent(structureId)}` : "";
+      for (const marker of ["/structure/", "/equipment/"]) {
+        const index = url.pathname.indexOf(marker);
+        if (index >= 0) {
+          const checklistId = decodeURIComponent(url.pathname.slice(index + marker.length));
+          return checklistId ? `${marker}${encodeURIComponent(checklistId)}` : "";
+        }
       }
     } catch (_error) {
       // Not a full URL; continue with path or plain Structure ID handling.
@@ -39,6 +40,15 @@
       return structureId ? `/structure/${encodeURIComponent(structureId)}` : "";
     }
 
+    if (rawValue.startsWith("/equipment/")) {
+      const equipmentId = decodeURIComponent(rawValue.slice("/equipment/".length));
+      return equipmentId ? `/equipment/${encodeURIComponent(equipmentId)}` : "";
+    }
+
+    if (/^[A-Za-z0-9._ -]+$/.test(rawValue) && rawValue.toUpperCase().includes("-EQP-")) {
+      return `/equipment/${encodeURIComponent(rawValue)}`;
+    }
+
     if (/^[A-Za-z0-9._ -]+$/.test(rawValue) && rawValue.toUpperCase().includes("STR-")) {
       return `/structure/${encodeURIComponent(rawValue)}`;
     }
@@ -46,11 +56,11 @@
     return "";
   }
 
-  function openStructure(value) {
+  function openChecklist(value) {
     if (isOpening) return;
-    const nextUrl = structureUrlFromValue(value);
+    const nextUrl = checklistUrlFromValue(value);
     if (!nextUrl) {
-      setStatus("QR code me valid Structure link/ID nahi mila.", "text-danger");
+      setStatus("QR code me valid checklist link/ID nahi mila.", "text-danger");
       return;
     }
 
@@ -85,7 +95,7 @@
           aspectRatio: 1
         },
         function (decodedText) {
-          openStructure(decodedText);
+          openChecklist(decodedText);
         }
       );
       isScanning = true;
@@ -118,7 +128,7 @@
   if (manualForm && manualInput) {
     manualForm.addEventListener("submit", function (event) {
       event.preventDefault();
-      openStructure(manualInput.value);
+      openChecklist(manualInput.value);
     });
   }
 

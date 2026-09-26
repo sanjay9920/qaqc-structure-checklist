@@ -4,6 +4,7 @@ from io import BytesIO, StringIO
 from openpyxl import Workbook
 
 from .config import STATUS_OPTIONS
+from .equipment_services import get_equipment_history, list_equipment_checklists
 from .services import get_history, get_project_display_names, list_structures
 
 
@@ -103,6 +104,104 @@ def export_history_csv(db, project=None, block=None):
     return output.getvalue()
 
 
+def export_equipment_csv(db, project=None, block=None):
+    output = StringIO()
+    writer = csv.writer(output)
+    project_display_names = get_project_display_names(db)
+    writer.writerow(
+        [
+            "Project",
+            "Block",
+            "Checklist Type",
+            "Format No.",
+            "Record No.",
+            "Equipment Checklist ID",
+            "Checklist Point",
+            "Status",
+            "Point Remark",
+            "Remark Updated By",
+            "Final Remark",
+            "Updated By",
+            "Updated At",
+            "Completed Count",
+            "Pending Count",
+            "Not Applicable Count",
+            "Progress %",
+        ]
+    )
+    for record in list_equipment_checklists(db, project=project, block=block):
+        counts = record["counts"]
+        for item in record["checklist"]:
+            writer.writerow(
+                [
+                    _project_label(project_display_names, record.get("project", "")),
+                    record.get("block", ""),
+                    record.get("template_name", ""),
+                    record.get("format_no", ""),
+                    record.get("record_number", ""),
+                    record.get("equipment_id", ""),
+                    item.get("label", ""),
+                    _status_label(item.get("status", "")),
+                    item.get("remark") or "",
+                    item.get("remark_updated_by") or "",
+                    record.get("final_remark") or "",
+                    item.get("updated_by") or "",
+                    item.get("updated_at") or "",
+                    counts["completed"],
+                    counts["pending"],
+                    counts["na"],
+                    counts["progress"],
+                ]
+            )
+    return output.getvalue()
+
+
+def export_equipment_history_csv(db, project=None, block=None):
+    output = StringIO()
+    writer = csv.writer(output)
+    project_display_names = get_project_display_names(db)
+    writer.writerow(
+        [
+            "Project",
+            "Block",
+            "Checklist Type",
+            "Record No.",
+            "Equipment Checklist ID",
+            "Checklist Point",
+            "Previous Status",
+            "New Status",
+            "Change Type",
+            "Previous Remark",
+            "New Remark",
+            "Updated By",
+            "Date",
+            "Time",
+            "Timezone",
+        ]
+    )
+    for row in get_equipment_history(db, project=project, block=block, limit=100000):
+        writer.writerow(
+            [
+                _project_label(project_display_names, row.get("project", "")),
+                row.get("block", ""),
+                row.get("template_name", ""),
+                row.get("record_number", ""),
+                row.get("equipment_id", ""),
+                row.get("item_label", ""),
+                _status_label(row.get("previous_status", "")),
+                _status_label(row.get("new_status", "")),
+                row.get("change_type", "status"),
+                row.get("previous_remark", ""),
+                row.get("new_remark", ""),
+                row.get("updated_by", ""),
+                row.get("updated_date", ""),
+                row.get("updated_time", ""),
+                row.get("timezone", ""),
+            ]
+        )
+    return output.getvalue()
+
+
 def export_all_xlsx(db, project=None, block=None):
     workbook = Workbook()
     project_display_names = get_project_display_names(db)
@@ -172,6 +271,94 @@ def export_all_xlsx(db, project=None, block=None):
                 _project_label(project_display_names, row.get("project", "")),
                 row.get("block", ""),
                 row.get("structure_id", ""),
+                row.get("item_label", ""),
+                _status_label(row.get("previous_status", "")),
+                _status_label(row.get("new_status", "")),
+                row.get("change_type", "status"),
+                row.get("previous_remark", ""),
+                row.get("new_remark", ""),
+                row.get("updated_by", ""),
+                row.get("updated_date", ""),
+                row.get("updated_time", ""),
+                row.get("timezone", ""),
+            ]
+        )
+
+    equipment_sheet = workbook.create_sheet("Equipment Checklists")
+    equipment_sheet.append(
+        [
+            "Project",
+            "Block",
+            "Checklist Type",
+            "Format No.",
+            "Record No.",
+            "Equipment Checklist ID",
+            "Checklist Point",
+            "Status",
+            "Point Remark",
+            "Remark Updated By",
+            "Final Remark",
+            "Updated By",
+            "Updated At",
+            "Completed Count",
+            "Pending Count",
+            "Not Applicable Count",
+            "Progress %",
+        ]
+    )
+    for record in list_equipment_checklists(db, project=project, block=block):
+        counts = record["counts"]
+        for item in record["checklist"]:
+            equipment_sheet.append(
+                [
+                    _project_label(project_display_names, record.get("project", "")),
+                    record.get("block", ""),
+                    record.get("template_name", ""),
+                    record.get("format_no", ""),
+                    record.get("record_number", ""),
+                    record.get("equipment_id", ""),
+                    item.get("label", ""),
+                    _status_label(item.get("status", "")),
+                    item.get("remark") or "",
+                    item.get("remark_updated_by") or "",
+                    record.get("final_remark") or "",
+                    item.get("updated_by") or "",
+                    str(item.get("updated_at") or ""),
+                    counts["completed"],
+                    counts["pending"],
+                    counts["na"],
+                    counts["progress"],
+                ]
+            )
+
+    equipment_history_sheet = workbook.create_sheet("Equipment History")
+    equipment_history_sheet.append(
+        [
+            "Project",
+            "Block",
+            "Checklist Type",
+            "Record No.",
+            "Equipment Checklist ID",
+            "Checklist Point",
+            "Previous Status",
+            "New Status",
+            "Change Type",
+            "Previous Remark",
+            "New Remark",
+            "Updated By",
+            "Date",
+            "Time",
+            "Timezone",
+        ]
+    )
+    for row in get_equipment_history(db, project=project, block=block, limit=100000):
+        equipment_history_sheet.append(
+            [
+                _project_label(project_display_names, row.get("project", "")),
+                row.get("block", ""),
+                row.get("template_name", ""),
+                row.get("record_number", ""),
+                row.get("equipment_id", ""),
                 row.get("item_label", ""),
                 _status_label(row.get("previous_status", "")),
                 _status_label(row.get("new_status", "")),

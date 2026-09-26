@@ -12,14 +12,19 @@ def structure_url(structure_id, base_url=None):
     return f"{root}/structure/{structure_id}"
 
 
-def generate_qr_bytes(structure_id, base_url=None):
+def equipment_url(equipment_id, base_url=None):
+    root = (base_url or settings.app_base_url or "http://localhost:5000").rstrip("/")
+    return f"{root}/equipment/{equipment_id}"
+
+
+def generate_url_qr_bytes(url):
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
         box_size=10,
         border=4,
     )
-    qr.add_data(structure_url(structure_id, base_url))
+    qr.add_data(url)
     qr.make(fit=True)
     image = qr.make_image(fill_color="black", back_color="white")
 
@@ -27,6 +32,14 @@ def generate_qr_bytes(structure_id, base_url=None):
     image.save(output, format="PNG")
     output.seek(0)
     return output
+
+
+def generate_qr_bytes(structure_id, base_url=None):
+    return generate_url_qr_bytes(structure_url(structure_id, base_url))
+
+
+def generate_equipment_qr_bytes(equipment_id, base_url=None):
+    return generate_url_qr_bytes(equipment_url(equipment_id, base_url))
 
 
 def generate_qr_zip(structure_ids, base_url=None):

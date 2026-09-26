@@ -23,9 +23,28 @@ from flask import (
 
 from .auth import admin_required, current_user, login_required
 from .config import settings
-from .exports import export_all_xlsx, export_history_csv, export_structures_csv
+from .exports import (
+    export_all_xlsx,
+    export_equipment_csv,
+    export_equipment_history_csv,
+    export_history_csv,
+    export_structures_csv,
+)
+from .equipment_catalog import get_equipment_catalog
+from .equipment_services import (
+    build_equipment_summary,
+    create_equipment_checklist,
+    delete_equipment_checklist,
+    get_equipment_checklist,
+    get_equipment_history,
+    list_equipment_checklists,
+    normalize_equipment_id,
+    update_equipment_final_remark,
+    update_equipment_remark,
+    update_equipment_status,
+)
 from .firebase_client import get_db, initialize_firebase
-from .qr import generate_qr_bytes, generate_qr_zip
+from .qr import generate_equipment_qr_bytes, generate_qr_bytes, generate_qr_zip
 from .services import (
     add_checklist_item,
     create_project,
@@ -270,6 +289,15 @@ def create_app():
             return None, response, status
         return structure, None, None
 
+    def load_allowed_equipment(equipment_id):
+        equipment = get_equipment_checklist(db(), equipment_id)
+        if not equipment:
+            return None, jsonify({"error": "Equipment checklist not found."}), 404
+        if not user_can_access_structure(g.user, equipment):
+            response, status = structure_access_denied_response(equipment)
+            return None, response, status
+        return equipment, None, None
+
     def can_edit_structure(structure):
         return user_can_access_structure(g.get("user"), structure)
 
@@ -290,6 +318,25 @@ def create_app():
                 "status": item.get("status", "pending"),
             }
             for item in structure.get("checklist", [])
+        ]
+        return payload
+
+    def public_equipment_payload(equipment, can_edit=False):
+        payload = dict(equipment)
+        payload["can_edit"] = bool(can_edit)
+        if can_edit:
+            return payload
+        payload["updated_by"] = None
+        payload["created_by"] = None
+        payload["final_remark"] = ""
+        payload["final_remark_updated_by"] = None
+        payload["checklist"] = [
+            {
+                "item_id": item.get("item_id"),
+                "label": item.get("label"),
+                "status": item.get("status", "pending"),
+            }
+            for item in equipment.get("checklist", [])
         ]
         return payload
 
@@ -428,6 +475,11 @@ def create_app():
             if project_id and (allowed_set is None or project_id in allowed_set)
             else []
         )
+        equipment_records = (
+            list_equipment_checklists(database, project=project_id, block=block_id)
+            if project_id and (allowed_set is None or project_id in allowed_set)
+            else []
+        )
         block_structure_count = 0
         if block_id:
             block_counts = project_block_structure_counts.get(project_id, {})
@@ -467,6 +519,8 @@ def create_app():
         pending = total - completed
         payload = {
             "structures": structures,
+            "equipment_records": equipment_records,
+            "equipment_summary": build_equipment_summary(equipment_records),
             "total": total,
             "completed": completed,
             "pending": pending,
@@ -703,6 +757,112 @@ def create_app():
         clear_dashboard_cache()
         return jsonify(result)
 
+    @app.get("/equipment/<equipment_id>")
+    def equipment_page(equipment_id):
+        equipment = get_equipment_checklist(db(), equipment_id)
+        if not equipment:
+            return render_template("not_found.html", structure_id=equipment_id), 404
+        editable = can_edit_structure(equipment)
+        equipment["project_display_name"] = get_project_display_name(
+            db(), equipment.get("project")
+        )
+        history = (
+            get_equipment_history(db(), equipment_id=equipment["equipment_id"], limit=50)
+            if editable
+            else []
+        )
+        return render_template(
+            "equipment.html",
+            equipment=equipment,
+            equipment_history=history,
+            can_edit_equipment=editable,
+        )
+
+    @app.get("/equipment/<equipment_id>/qr.png")
+    def equipment_qr(equipment_id):
+        normalized_id = normalize_equipment_id(equipment_id)
+        if not get_equipment_checklist(db(), normalized_id):
+            return Response("Equipment checklist not found.", status=404)
+        png = generate_equipment_qr_bytes(normalized_id, public_base_url())
+        return send_file(
+            png,
+            mimetype="image/png",
+            as_attachment=request.args.get("download") == "1",
+            download_name=f"{normalized_id}.png",
+        )
+
+    @app.get("/api/equipment/<equipment_id>")
+    def api_equipment(equipment_id):
+        equipment = get_equipment_checklist(db(), equipment_id)
+        if not equipment:
+            return jsonify({"error": "Equipment checklist not found."}), 404
+        editable = can_edit_structure(equipment)
+        equipment["project_display_name"] = get_project_display_name(
+            db(), equipment.get("project")
+        )
+        return jsonify(public_equipment_payload(equipment, editable))
+
+    @app.post("/api/equipment/<equipment_id>/items/<item_id>")
+    @login_required
+    def api_update_equipment_item(equipment_id, item_id):
+        payload = request.get_json(silent=True) or {}
+        _equipment, error_response, status = load_allowed_equipment(equipment_id)
+        if error_response:
+            return error_response, status
+        try:
+            result = update_equipment_status(
+                db(), equipment_id, item_id, payload.get("status"), g.user
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            app.logger.exception(
+                "Equipment checklist update failed for %s/%s", equipment_id, item_id
+            )
+            return jsonify({"error": "Could not update checklist. Please try again."}), 500
+        clear_dashboard_cache()
+        return jsonify(result)
+
+    @app.post("/api/equipment/<equipment_id>/items/<item_id>/remark")
+    @login_required
+    def api_update_equipment_item_remark(equipment_id, item_id):
+        payload = request.get_json(silent=True) or {}
+        _equipment, error_response, status = load_allowed_equipment(equipment_id)
+        if error_response:
+            return error_response, status
+        try:
+            result = update_equipment_remark(
+                db(), equipment_id, item_id, payload.get("remark", ""), g.user
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            app.logger.exception(
+                "Equipment remark update failed for %s/%s", equipment_id, item_id
+            )
+            return jsonify({"error": "Could not update remark. Please try again."}), 500
+        clear_dashboard_cache()
+        return jsonify(result)
+
+    @app.post("/api/equipment/<equipment_id>/final-remark")
+    @login_required
+    def api_update_equipment_final_remark(equipment_id):
+        payload = request.get_json(silent=True) or {}
+        _equipment, error_response, status = load_allowed_equipment(equipment_id)
+        if error_response:
+            return error_response, status
+        try:
+            result = update_equipment_final_remark(
+                db(), equipment_id, payload.get("remark", ""), g.user
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            app.logger.exception("Equipment final remark update failed for %s", equipment_id)
+            return jsonify({"error": "Could not update final remark. Please try again."}), 500
+        clear_dashboard_cache()
+        return jsonify(result)
+
     @app.get("/admin/users")
     @admin_required
     def admin_users():
@@ -907,6 +1067,9 @@ def create_app():
             bulk_project=request.args.get("bulk_project", ""),
             bulk_block=request.args.get("bulk_block", ""),
             selected_structure_number=selected_structure_number,
+            equipment_templates=get_equipment_catalog(),
+            equipment_records=payload["equipment_records"],
+            equipment_summary=payload["equipment_summary"],
         )
 
     @app.get("/admin/api/structures")
@@ -1047,6 +1210,63 @@ def create_app():
         )
         clear_dashboard_cache()
         return redirect(url_for("structure_page", structure_id=structure["structure_id"]))
+
+    @app.post("/admin/equipment")
+    @login_required
+    def admin_create_equipment():
+        project_id, block_id = normalize_scope(
+            request.form.get("project", "").strip(),
+            request.form.get("block", "").strip(),
+        )
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
+        try:
+            equipment = create_equipment_checklist(
+                db(),
+                project_id,
+                block_id,
+                request.form.get("template_id", "").strip(),
+                request.form.get("record_number", "01").strip(),
+                g.user["email"],
+                base_url=public_base_url(),
+            )
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            return redirect(
+                url_for("admin_dashboard", project=project_id, block=block_id)
+            )
+        clear_dashboard_cache()
+        return redirect(
+            url_for("equipment_page", equipment_id=equipment["equipment_id"])
+        )
+
+    @app.post("/admin/equipment/<equipment_id>/delete")
+    @login_required
+    def admin_delete_equipment(equipment_id):
+        equipment, error_response, status = load_allowed_equipment(equipment_id)
+        if error_response:
+            return error_response, status
+        deleted = delete_equipment_checklist(db(), equipment["equipment_id"])
+        if not deleted:
+            if wants_json_response():
+                return jsonify({"error": "Equipment checklist not found."}), 404
+            flash("Equipment checklist not found.", "warning")
+            return redirect(url_for("admin_dashboard"))
+        clear_dashboard_cache()
+        if wants_json_response():
+            return jsonify({"deleted": deleted})
+        flash(
+            f"Deleted {deleted['template_name']} record {deleted['record_number']}.",
+            "success",
+        )
+        return redirect(
+            url_for(
+                "admin_dashboard",
+                project=deleted["project"],
+                block=deleted["block"],
+            )
+        )
 
     @app.post("/admin/projects/<project_id>/delete")
     @login_required
@@ -1351,6 +1571,46 @@ def create_app():
             headers={"Content-Disposition": "attachment; filename=history.csv"},
         )
 
+    @app.get("/admin/export/equipment.csv")
+    @login_required
+    def admin_export_equipment_csv():
+        project_id, block_id = normalize_scope(
+            request.args.get("project", "").strip(),
+            request.args.get("block", "").strip(),
+        )
+        if not project_id and not (g.user.get("is_admin") or g.user.get("all_projects")):
+            return dashboard_access_denied_response(project_id)
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
+        csv_text = export_equipment_csv(db(), project=project_id, block=block_id)
+        return Response(
+            csv_text,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=equipment-checklists.csv"},
+        )
+
+    @app.get("/admin/export/equipment-history.csv")
+    @login_required
+    def admin_export_equipment_history_csv():
+        project_id, block_id = normalize_scope(
+            request.args.get("project", "").strip(),
+            request.args.get("block", "").strip(),
+        )
+        if not project_id and not (g.user.get("is_admin") or g.user.get("all_projects")):
+            return dashboard_access_denied_response(project_id)
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
+        csv_text = export_equipment_history_csv(
+            db(), project=project_id, block=block_id
+        )
+        return Response(
+            csv_text,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=equipment-history.csv"},
+        )
+
     @app.get("/admin/export/all.xlsx")
     @login_required
     def admin_export_all_xlsx():
@@ -1368,7 +1628,7 @@ def create_app():
             workbook,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             as_attachment=True,
-            download_name="structure-checklist-export.xlsx",
+            download_name="quality-checklist-export.xlsx",
         )
 
     return app

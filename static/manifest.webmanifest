@@ -1,7 +1,7 @@
 {
-  "name": "Quality Department - Structure Inspection Management System",
+  "name": "Quality Department - QA/QC Inspection Management System",
   "short_name": "Quality SIMS",
-  "description": "Structure inspection checklist, QR access and progress tracking for quality teams.",
+  "description": "Structure, electrical and equipment inspection checklists with QR access and progress tracking.",
   "start_url": "/login",
   "scope": "/",
   "display": "standalone",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "name": "Scan Structure QR",
+      "name": "Scan Checklist QR",
       "short_name": "Scan QR",
       "url": "/scan",
       "icons": [
