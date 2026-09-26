@@ -229,7 +229,7 @@ def build_structure_view(structure_id, data, items):
 
 def sync_missing_checklist_items(db, structure_id, data, items):
     checklist = data.get("checklist", {}) or {}
-    changed = False
+    updates = {}
     for item in items:
         item_id = item["item_id"]
         if item.get("active", True) and item_id not in checklist:
@@ -242,9 +242,9 @@ def sync_missing_checklist_items(db, structure_id, data, items):
                 "updated_at": None,
                 "updated_by": None,
             }
-            changed = True
-    if changed:
-        db.collection("structures").document(structure_id).update({"checklist": checklist})
+            updates[f"checklist.{item_id}"] = checklist[item_id]
+    if updates:
+        db.collection("structures").document(structure_id).update(updates)
         data["checklist"] = checklist
     return data
 
@@ -588,7 +588,15 @@ def list_structures(db, search="", block=None, project=None):
     project_id, block_id = normalize_scope(project, block)
     items = get_active_checklist_items(db)
     structures = []
-    for snap in db.collection("structures").stream():
+    collection = db.collection("structures")
+    docs = (
+        collection.where(
+            filter=firestore.FieldFilter("project", "==", project_id)
+        ).stream()
+        if project_id
+        else collection.stream()
+    )
+    for snap in docs:
         structure_id = snap.id
         data = snap.to_dict()
         scope = infer_scope_from_structure_id(structure_id)
@@ -633,20 +641,23 @@ def list_project_records(db):
                 "block_structure_counts": data.get("block_structure_counts") or {},
             }
 
-    for snap in db.collection("structures").stream():
-        data = snap.to_dict() or {}
-        scope = infer_scope_from_structure_id(snap.id)
-        project_id, _block_id = normalize_scope(
-            data.get("project") or scope["project"],
-            data.get("block") or scope["block"],
-        )
-        if project_id and project_id not in projects:
-            projects[project_id] = {
-                "project_id": project_id,
-                "display_name": display_project_name(project_id),
-                "block_count": 0,
-                "block_structure_counts": {},
-            }
+    # Structure scanning is only a migration fallback for legacy databases that
+    # predate the projects collection. Normal dashboard loads read projects only.
+    if not projects:
+        for snap in db.collection("structures").stream():
+            data = snap.to_dict() or {}
+            scope = infer_scope_from_structure_id(snap.id)
+            project_id, _block_id = normalize_scope(
+                data.get("project") or scope["project"],
+                data.get("block") or scope["block"],
+            )
+            if project_id and project_id not in projects:
+                projects[project_id] = {
+                    "project_id": project_id,
+                    "display_name": display_project_name(project_id),
+                    "block_count": 0,
+                    "block_structure_counts": {},
+                }
     return sorted(
         projects.values(),
         key=lambda item: (item["display_name"].upper(), item["project_id"]),
@@ -844,6 +855,8 @@ def update_checklist_status(db, structure_id, item_id, new_status, user):
         data.get("block") or scope["block"],
     )
     checklist = data.get("checklist", {}) or {}
+    if item_id not in checklist:
+        raise ValueError("Checklist point not found.")
     item_data = checklist.get(item_id, {}) or {}
     previous_status = item_data.get("status", "pending")
     item_label = item_data.get("label") or get_item_label(db, item_id)
@@ -859,10 +872,12 @@ def update_checklist_status(db, structure_id, item_id, new_status, user):
             "updated_by": email,
         }
     )
-    checklist[item_id] = item_data
     ref.update(
         {
-            "checklist": checklist,
+            f"checklist.{item_id}.label": item_label,
+            f"checklist.{item_id}.status": new_status,
+            f"checklist.{item_id}.updated_at": timestamp_utc,
+            f"checklist.{item_id}.updated_by": email,
             "updated_at": timestamp_utc,
             "updated_by": email,
         }
@@ -909,6 +924,8 @@ def update_checklist_remark(db, structure_id, item_id, remark, user):
         data.get("block") or scope["block"],
     )
     checklist = data.get("checklist", {}) or {}
+    if item_id not in checklist:
+        raise ValueError("Checklist point not found.")
     item_data = checklist.get(item_id, {}) or {}
     previous_remark = item_data.get("remark", "")
     item_label = item_data.get("label") or get_item_label(db, item_id)
@@ -925,10 +942,13 @@ def update_checklist_remark(db, structure_id, item_id, remark, user):
             "remark_updated_by": email,
         }
     )
-    checklist[item_id] = item_data
     ref.update(
         {
-            "checklist": checklist,
+            f"checklist.{item_id}.label": item_label,
+            f"checklist.{item_id}.status": item_data.get("status", "pending"),
+            f"checklist.{item_id}.remark": remark,
+            f"checklist.{item_id}.remark_updated_at": timestamp_utc,
+            f"checklist.{item_id}.remark_updated_by": email,
             "updated_at": timestamp_utc,
             "updated_by": email,
         }
@@ -1122,6 +1142,10 @@ def get_history(db, structure_id=None, project=None, block=None, limit=300):
                 "structure_id", "==", normalize_structure_id(structure_id)
             )
         ).stream()
+    elif project_id:
+        docs = db.collection("history").where(
+            filter=firestore.FieldFilter("project", "==", project_id)
+        ).stream()
     else:
         docs = db.collection("history").stream()
 
@@ -1140,7 +1164,14 @@ def get_history(db, structure_id=None, project=None, block=None, limit=300):
             continue
         rows.append(data)
 
-    rows.sort(key=lambda item: item.get("updated_at") or datetime.min, reverse=True)
+    rows.sort(
+        key=lambda item: (
+            item["updated_at"].timestamp()
+            if isinstance(item.get("updated_at"), datetime)
+            else 0
+        ),
+        reverse=True,
+    )
     return rows[:limit]
 
 

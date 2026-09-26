@@ -212,11 +212,11 @@ Example document ID:
 100-MW-AKOLA-SITE-BLOCK-1-EQP-CABLE-LAYING-01
 ```
 
-Each document stores its project, block, checklist template, record number, QR URL, point statuses, Excel-format observations/measurements, point remarks, final remark and update user/timestamps.
+Each document stores its project, block, checklist template, record number, equipment/circuit identification, size/rating/specification, vendor/manufacturer, QR URL, point statuses, Excel-format observations/measurements, point remarks, final remark and update user/timestamps.
 
 ### `equipment_history/{auto_id}`
 
-Every equipment status, measured reading, point remark and final remark change is stored with project, block, checklist name, record number, previous value, new value, user, date and time.
+Every equipment status, measured reading, checklist detail, point remark and final remark change is stored with project, block, checklist name, record number, previous value, new value, user, date and time.
 
 The bundled catalog contains 44 checklist types and 576 points extracted from `3.)Ele chechlist of Block.xlsx`. Every point includes the Excel observation field. ERT, VOC, IR, IMP, LV IR and inverter pre-commissioning retain their multi-column measurement formats.
 
@@ -268,6 +268,8 @@ Open:
 http://localhost:5000
 ```
 
+The development server binds to localhost by default. For temporary LAN testing, set `HOST=0.0.0.0`; use the Render HTTPS URL for normal mobile and QR access from any network.
+
 Admin panel:
 
 ```text
@@ -285,8 +287,9 @@ To use an electrical/equipment checklist:
 1. Open a project dashboard.
 2. Select a block.
 3. Select the checklist type, such as Cable Laying or Transformer Installation.
-4. Enter a record number such as `01` and click `Open`.
-5. Update each point status, Excel-format observation/measurement fields and remark, then download that record's QR.
+4. Enter a record number, equipment/circuit ID such as `SCB-1`, specification such as `240 SQMM`, and vendor name.
+5. Click `Create / Open`. These details can also be edited and saved at the top of the checklist page.
+6. Update each point status, Excel-format observation/measurement fields and remark, then download that record's QR.
 
 To rebuild the checklist catalog from the source workbook:
 
@@ -416,6 +419,7 @@ GET  /equipment/<equipment_id>/qr.png
 GET  /api/equipment/<equipment_id>
 POST /api/equipment/<equipment_id>/items/<item_id>/value
 POST /api/equipment/<equipment_id>/items/<item_id>/measurements
+POST /api/equipment/<equipment_id>/details
 GET  /admin
 POST /admin/equipment
 POST /admin/equipment/<equipment_id>/delete
@@ -440,7 +444,8 @@ GET  /admin/export/all.xlsx
 - Firestore data is persistent after the browser closes.
 - Every status change writes a row into `history`.
 - Equipment checklist changes write to `equipment_history`.
-- Structure and equipment pages refresh latest data every 5 seconds so another scanner sees updates without manual refresh.
+- Structure and equipment pages refresh latest data every 15 seconds and immediately after returning online or reopening the tab, reducing Firestore reads while keeping updates automatic.
+- Project-scoped Firestore queries avoid reading unrelated projects on block dashboards and exports.
 - Public QR users can view progress without login. Editing requires project access.
 - For production, use HTTPS and set `COOKIE_SECURE=true`.
 - Keep `serviceAccountKey.json` out of source control.

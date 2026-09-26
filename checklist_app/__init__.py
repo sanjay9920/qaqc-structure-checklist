@@ -4,6 +4,7 @@ from pathlib import Path
 import time
 from urllib import error as url_error
 from urllib import request as url_request
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from firebase_admin import auth as firebase_auth
@@ -20,6 +21,7 @@ from flask import (
     send_file,
     url_for,
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .auth import admin_required, current_user, login_required
 from .config import settings
@@ -40,6 +42,7 @@ from .equipment_services import (
     list_equipment_checklists,
     normalize_equipment_id,
     update_equipment_final_remark,
+    update_equipment_details,
     update_equipment_measurements,
     update_equipment_remark,
     update_equipment_status,
@@ -91,7 +94,9 @@ def create_app():
         template_folder=str(BASE_DIR / "templates"),
         static_folder=str(BASE_DIR / "static"),
     )
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.secret_key = settings.session_secret
+    app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
     dashboard_cache = {}
     dashboard_cache_ttl = 60
 
@@ -104,6 +109,25 @@ def create_app():
     @app.before_request
     def load_user():
         g.user = current_user()
+
+    @app.after_request
+    def add_security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault(
+            "Permissions-Policy", "camera=(self), microphone=(), geolocation=()"
+        )
+        if request.is_secure:
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
+        if (
+            request.path.startswith(("/api/", "/admin", "/auth/", "/account"))
+            or response.mimetype == "text/html"
+        ):
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.context_processor
     def inject_globals():
@@ -150,12 +174,29 @@ def create_app():
             or request.accept_mimetypes.best == "application/json"
         )
 
+    def safe_next_url(value, fallback=None):
+        fallback = fallback or url_for("admin_dashboard")
+        candidate = (value or "").strip()
+        if (
+            not candidate
+            or not candidate.startswith("/")
+            or candidate.startswith("//")
+            or "\\" in candidate
+        ):
+            return fallback
+        parsed = urlsplit(candidate)
+        if parsed.scheme or parsed.netloc:
+            return fallback
+        return candidate
+
     def clear_dashboard_cache():
         dashboard_cache.clear()
 
     def firebase_auth_request(action, payload):
         if not settings.firebase_api_key:
             raise ValueError("Firebase API key is missing.")
+        if action not in {"signInWithPassword", "sendOobCode"}:
+            raise ValueError("Unsupported Firebase authentication action.")
 
         body = json.dumps(payload).encode("utf-8")
         request_url = (
@@ -169,7 +210,8 @@ def create_app():
             method="POST",
         )
         try:
-            with url_request.urlopen(request_obj, timeout=30) as response:
+            # The URL is built from the fixed Google Identity Toolkit HTTPS host.
+            with url_request.urlopen(request_obj, timeout=30) as response:  # nosec B310
                 return json.loads(response.read().decode("utf-8"))
         except url_error.HTTPError as exc:
             try:
@@ -448,7 +490,13 @@ def create_app():
             return error
         return None
 
-    def build_dashboard_payload(search, project_id, block_id, allowed_project_ids=None):
+    def build_dashboard_payload(
+        search,
+        project_id,
+        block_id,
+        allowed_project_ids=None,
+        project_records=None,
+    ):
         allowed_set = None
         if allowed_project_ids is not None:
             allowed_set = set(normalize_project_list(allowed_project_ids))
@@ -466,7 +514,11 @@ def create_app():
         database = db()
         project_records = [
             item
-            for item in list_project_records(database)
+            for item in (
+                project_records
+                if project_records is not None
+                else list_project_records(database)
+            )
             if allowed_set is None or item["project_id"] in allowed_set
         ]
         project_display_names = {
@@ -565,9 +617,12 @@ def create_app():
     @app.get("/login")
     def login():
         if g.user:
-            next_url = request.args.get("next") or url_for("admin_dashboard")
+            next_url = safe_next_url(request.args.get("next"))
             return redirect(next_url)
-        return render_template("login.html", next_url=request.args.get("next", ""))
+        return render_template(
+            "login.html",
+            next_url=safe_next_url(request.args.get("next"), url_for("admin_dashboard")),
+        )
 
     @app.get("/account")
     @login_required
@@ -661,8 +716,9 @@ def create_app():
 
         try:
             return create_session_response(id_token)
-        except Exception as exc:
-            return jsonify({"error": f"Could not create session: {exc}"}), 401
+        except Exception:
+            app.logger.exception("Firebase session creation failed")
+            return jsonify({"error": "Could not create session. Please sign in again."}), 401
 
     @app.get("/logout")
     def logout():
@@ -687,6 +743,8 @@ def create_app():
     @app.get("/structure/<structure_id>/qr.png")
     def structure_qr(structure_id):
         normalized_id = normalize_structure_id(structure_id)
+        if not get_structure(db(), normalized_id):
+            return Response("Structure not found.", status=404)
         png = generate_qr_bytes(normalized_id, public_base_url())
         return send_file(
             png,
@@ -918,6 +976,27 @@ def create_app():
         clear_dashboard_cache()
         return jsonify(result)
 
+    @app.post("/api/equipment/<equipment_id>/details")
+    @login_required
+    def api_update_equipment_details(equipment_id):
+        payload = request.get_json(silent=True) or {}
+        _equipment, error_response, status = load_allowed_equipment(equipment_id)
+        if error_response:
+            return error_response, status
+        try:
+            result = update_equipment_details(
+                db(), equipment_id, payload, g.user, partial=True
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            app.logger.exception("Equipment details update failed for %s", equipment_id)
+            return jsonify({"error": "Could not update checklist details."}), 500
+        if not result:
+            return jsonify({"error": "Equipment checklist not found."}), 404
+        clear_dashboard_cache()
+        return jsonify(result)
+
     @app.get("/admin/users")
     @admin_required
     def admin_users():
@@ -993,8 +1072,9 @@ def create_app():
                 flash(f"Access enabled for {user.email}.", "success")
             else:
                 flash("Invalid access action.", "danger")
-        except Exception as exc:
-            flash(f"Could not update access: {exc}", "danger")
+        except Exception:
+            app.logger.exception("Could not update user access for %s", uid)
+            flash("Could not update user access. Please try again.", "danger")
         return redirect(url_for("admin_users"))
 
     @app.post("/admin/users/<uid>/role")
@@ -1020,8 +1100,9 @@ def create_app():
             )
             firebase_auth.revoke_refresh_tokens(uid)
             flash(f"Role updated for {user.email}.", "success")
-        except Exception as exc:
-            flash(f"Could not update role: {exc}", "danger")
+        except Exception:
+            app.logger.exception("Could not update user role for %s", uid)
+            flash("Could not update user role. Please try again.", "danger")
         return redirect(url_for("admin_users"))
 
     @app.post("/admin/users/<uid>/projects")
@@ -1048,8 +1129,9 @@ def create_app():
                 )
                 firebase_auth.revoke_refresh_tokens(uid)
                 flash(f"Project access updated for {user.email}.", "success")
-        except Exception as exc:
-            flash(f"Could not update project access: {exc}", "danger")
+        except Exception:
+            app.logger.exception("Could not update project access for %s", uid)
+            flash("Could not update project access. Please try again.", "danger")
         return redirect(url_for("admin_users"))
 
     @app.post("/admin/users/<uid>/reset")
@@ -1088,7 +1170,11 @@ def create_app():
             )
 
         payload = build_dashboard_payload(
-            search, project_id, block_id, allowed_project_ids=allowed_project_ids
+            search,
+            project_id,
+            block_id,
+            allowed_project_ids=allowed_project_ids,
+            project_records=project_records,
         )
         create_id = normalize_structure_id(request.args.get("create_id", "").strip())
         if not create_id and project_id and block_id:
@@ -1135,7 +1221,7 @@ def create_app():
             request.args.get("project", "").strip(),
             request.args.get("block", "").strip(),
         )
-        _project_records, allowed_project_ids = dashboard_project_records_for_user(
+        project_records, allowed_project_ids = dashboard_project_records_for_user(
             g.user, list_project_records(db())
         )
         if project_id and not user_can_access_project(g.user, project_id):
@@ -1143,7 +1229,11 @@ def create_app():
             return response, status
         return jsonify(
             build_dashboard_payload(
-                search, project_id, block_id, allowed_project_ids=allowed_project_ids
+                search,
+                project_id,
+                block_id,
+                allowed_project_ids=allowed_project_ids,
+                project_records=project_records,
             )
         )
 
@@ -1285,6 +1375,11 @@ def create_app():
                 request.form.get("record_number", "01").strip(),
                 g.user["email"],
                 base_url=public_base_url(),
+                vendor_name=request.form.get("vendor_name", ""),
+                equipment_identification=request.form.get(
+                    "equipment_identification", ""
+                ),
+                specification=request.form.get("specification", ""),
             )
         except ValueError as exc:
             flash(str(exc), "danger")

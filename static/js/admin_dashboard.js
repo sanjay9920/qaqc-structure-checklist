@@ -319,11 +319,23 @@
     const counts = record.counts || {};
     const equipmentId = record.equipment_id || "";
     const progress = counts.progress || 0;
+    const identityParts = [record.equipment_identification, record.specification]
+      .filter(Boolean)
+      .map(escapeHtml)
+      .join(" · ");
+    const detailLine = identityParts
+      ? `<small class="d-block equipment-row-detail">${identityParts}</small>`
+      : "";
+    const vendorLine = record.vendor_name
+      ? `<small class="d-block text-muted">Vendor: ${escapeHtml(record.vendor_name)}</small>`
+      : "";
     return `
       <tr>
         <td>
           <strong>${escapeHtml(record.template_name || "Equipment checklist")}</strong>
           <small class="d-block text-muted">${escapeHtml(record.format_no || "")}</small>
+          ${detailLine}
+          ${vendorLine}
         </td>
         <td>${escapeHtml(record.record_number || "")}</td>
         <td>${counts.completed || 0} / ${counts.total || 0}</td>

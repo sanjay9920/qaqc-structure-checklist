@@ -12,6 +12,11 @@
       </p>
       <h1 class="equipment-title mb-1">{{ equipment.template_name }}</h1>
       <p class="equipment-record-id mb-0">Record {{ equipment.record_number }} · {{ equipment.format_no }}</p>
+      <p class="equipment-identity-line mb-0">
+        <strong id="equipmentIdentificationHeader">{{ equipment.equipment_identification or "Identification not set" }}</strong>
+        <span aria-hidden="true">·</span>
+        <span id="equipmentSpecificationHeader">{{ equipment.specification or "Specification not set" }}</span>
+      </p>
     </div>
     <div class="structure-header-actions">
       {% if can_edit_equipment %}
@@ -53,7 +58,51 @@
       <span>Record No.</span>
       <strong>{{ equipment.record_number }}</strong>
     </div>
+    <div class="structure-info-tile">
+      <span>Equipment / Circuit ID</span>
+      <strong id="equipmentIdentificationValue">{{ equipment.equipment_identification or "-" }}</strong>
+    </div>
+    <div class="structure-info-tile">
+      <span>Size / Rating / Specification</span>
+      <strong id="equipmentSpecificationValue">{{ equipment.specification or "-" }}</strong>
+    </div>
+    <div class="structure-info-tile">
+      <span>Vendor / Manufacturer</span>
+      <strong id="equipmentVendorValue">{{ equipment.vendor_name or "-" }}</strong>
+    </div>
   </section>
+
+  {% if can_edit_equipment %}
+    <section class="admin-panel equipment-details-panel" aria-labelledby="equipmentDetailsTitle">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow mb-1">Checklist identification</p>
+          <h2 id="equipmentDetailsTitle" class="h5 mb-0">Vendor and equipment details</h2>
+        </div>
+        <span id="equipmentDetailsStatus" class="dashboard-scope">Saved with this checklist</span>
+      </div>
+      <form id="equipmentDetailsForm" class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label for="equipmentIdentification" class="form-label">Equipment / Circuit ID</label>
+          <input id="equipmentIdentification" class="form-control equipment-detail-input" maxlength="120" value="{{ equipment.equipment_identification }}" placeholder="e.g. SCB-1 or SCB-2">
+        </div>
+        <div class="col-12 col-md-4">
+          <label for="equipmentSpecification" class="form-label">Size / Rating / Specification</label>
+          <input id="equipmentSpecification" class="form-control equipment-detail-input" maxlength="160" value="{{ equipment.specification }}" placeholder="e.g. 240 SQMM or 400 SQMM">
+        </div>
+        <div class="col-12 col-md-4">
+          <label for="equipmentVendor" class="form-label">Vendor / Manufacturer</label>
+          <input id="equipmentVendor" class="form-control equipment-detail-input" maxlength="120" value="{{ equipment.vendor_name }}" placeholder="Enter vendor name">
+        </div>
+        <div class="col-12 d-grid d-md-flex justify-content-md-end mt-3">
+          <button id="saveEquipmentDetails" class="btn btn-primary" type="submit">
+            <i class="bi bi-save" aria-hidden="true"></i>
+            Save Details
+          </button>
+        </div>
+      </form>
+    </section>
+  {% endif %}
 
   <section class="summary-grid" aria-label="Checklist summary">
     <div class="summary-tile">
@@ -186,7 +235,7 @@
               <tr>
                 <td>{{ row.updated_date }}<small class="d-block text-muted">{{ row.updated_time }}</small></td>
                 <td>{{ row.item_label }}</td>
-                <td>{% if row.change_type in ["remark", "final_remark"] %}Remark updated{% elif row.change_type in ["value", "measurements"] %}Observation updated{% else %}{{ row.previous_status | status_label }} to {{ row.new_status | status_label }}{% endif %}</td>
+                <td>{% if row.change_type in ["remark", "final_remark"] %}Remark updated{% elif row.change_type in ["value", "measurements"] %}Observation updated{% elif row.change_type == "details" %}Checklist details updated{% else %}{{ row.previous_status | status_label }} to {{ row.new_status | status_label }}{% endif %}</td>
                 <td>{{ row.updated_by }}</td>
               </tr>
             {% else %}

@@ -12,6 +12,7 @@ from checklist_app.equipment_services import (
     get_equipment_history,
     list_equipment_checklists,
     update_equipment_final_remark,
+    update_equipment_details,
     update_equipment_measurements,
     update_equipment_remark,
     update_equipment_status,
@@ -45,7 +46,13 @@ class FakeDocument:
         self.database.data[self.collection_name][self.id] = copy.deepcopy(data)
 
     def update(self, data):
-        self.database.data[self.collection_name][self.id].update(copy.deepcopy(data))
+        document = self.database.data[self.collection_name][self.id]
+        for path, value in copy.deepcopy(data).items():
+            parts = path.split(".")
+            target = document
+            for part in parts[:-1]:
+                target = target.setdefault(part, {})
+            target[parts[-1]] = value
 
     def delete(self):
         self.database.data[self.collection_name].pop(self.id, None)
@@ -154,6 +161,9 @@ def build_fixture():
         "01",
         user["email"],
         base_url="https://quality.example.com",
+        vendor_name="Polycab",
+        equipment_identification="SCB-1",
+        specification="240 SQMM",
     )
     transformer = create_equipment_checklist(
         database,
@@ -214,6 +224,9 @@ class EquipmentWorkflowTests(unittest.TestCase):
             "12 x cable OD",
         )
         self.assertEqual(record["checklist"][6]["check_type"], "Measurement")
+        self.assertEqual(record["equipment_identification"], "SCB-1")
+        self.assertEqual(record["specification"], "240 SQMM")
+        self.assertEqual(record["vendor_name"], "Polycab")
         self.assertEqual(len(get_equipment_history(database, record["equipment_id"])), 4)
 
         csv_text = export_equipment_csv(
@@ -223,6 +236,9 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn("Cable type verified", csv_text)
         self.assertIn("12 x cable OD", csv_text)
         self.assertIn("Measured Value / Observation", csv_text)
+        self.assertIn("SCB-1", csv_text)
+        self.assertIn("240 SQMM", csv_text)
+        self.assertIn("Polycab", csv_text)
         workbook = load_workbook(
             export_all_xlsx(database, project="100 MW AKOLA SITE", block="1")
         )
@@ -253,10 +269,14 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertIn(b"Cable Laying", page.data)
         self.assertIn(b"12 x cable OD", page.data)
+        self.assertIn(b"SCB-1", page.data)
+        self.assertIn(b"240 SQMM", page.data)
+        self.assertIn(b"Polycab", page.data)
         self.assertNotIn(b"Cable type verified", page.data)
         self.assertNotIn(b"Save Observation", page.data)
 
         payload = client.get(f"/api/equipment/{record['equipment_id']}").get_json()
+        self.assertEqual(payload["equipment_identification"], "SCB-1")
         self.assertNotIn("remark", payload["checklist"][0])
         reading_point = next(
             item for item in payload["checklist"] if item["item_id"] == "point-007"
@@ -296,6 +316,51 @@ class EquipmentWorkflowTests(unittest.TestCase):
             json={"measurements": {"unknown_field": "Not allowed"}},
         )
         self.assertEqual(invalid.status_code, 400)
+
+    def test_equipment_details_can_be_saved_and_cleared(self):
+        database, user, record, _transformer = build_fixture()
+        updated = update_equipment_details(
+            database,
+            record["equipment_id"],
+            {
+                "equipment_identification": "SCB-2",
+                "specification": "400 SQMM",
+                "vendor_name": "KEI",
+            },
+            user,
+        )
+        self.assertEqual(updated["equipment_identification"], "SCB-2")
+        self.assertEqual(updated["specification"], "400 SQMM")
+        self.assertEqual(updated["vendor_name"], "KEI")
+
+        client = build_test_app(database, logged_in=True).test_client()
+        partial = client.post(
+            f"/api/equipment/{record['equipment_id']}/details",
+            json={"vendor_name": "Polycab Limited"},
+        )
+        self.assertEqual(partial.status_code, 200)
+        self.assertEqual(partial.get_json()["equipment_identification"], "SCB-2")
+        self.assertEqual(partial.get_json()["specification"], "400 SQMM")
+        self.assertEqual(partial.get_json()["vendor_name"], "Polycab Limited")
+
+        response = client.post(
+            f"/api/equipment/{record['equipment_id']}/details",
+            json={
+                "equipment_identification": "",
+                "specification": "",
+                "vendor_name": "",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["vendor_name"], "")
+        history = get_equipment_history(database, record["equipment_id"])
+        self.assertEqual(history[0]["change_type"], "details")
+
+        too_long = client.post(
+            f"/api/equipment/{record['equipment_id']}/details",
+            json={"vendor_name": "X" * 121},
+        )
+        self.assertEqual(too_long.status_code, 400)
 
     def test_every_excel_checklist_has_correct_observation_schema(self):
         catalog = get_equipment_catalog()
@@ -351,7 +416,16 @@ class EquipmentWorkflowTests(unittest.TestCase):
         url = "/admin?project=100-MW-AKOLA-SITE&block=BLOCK-1"
         page = client.get(url)
         self.assertEqual(page.status_code, 200)
-        for expected in [b"44 types", b"Cable Laying", b"12 points", b"Completed points"]:
+        for expected in [
+            b"44 types",
+            b"Cable Laying",
+            b"12 points",
+            b"Completed points",
+            b"Equipment / Circuit ID",
+            b"SCB-1",
+            b"240 SQMM",
+            b"Vendor / Manufacturer",
+        ]:
             self.assertIn(expected, page.data)
 
         payload = client.get(
@@ -359,6 +433,40 @@ class EquipmentWorkflowTests(unittest.TestCase):
         ).get_json()
         self.assertEqual(payload["equipment_summary"]["total_records"], 2)
         self.assertEqual(payload["equipment_records"][0]["equipment_id"], record["equipment_id"])
+
+    def test_security_headers_safe_redirect_and_missing_structure_qr(self):
+        database, _user, _record, _transformer = build_fixture()
+        public_client = build_test_app(database).test_client()
+        response = public_client.get("/login")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.headers["X-Frame-Options"], "DENY")
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        self.assertEqual(
+            public_client.get("/structure/DOES-NOT-EXIST/qr.png").status_code,
+            404,
+        )
+
+        logged_in_client = build_test_app(database, logged_in=True).test_client()
+        redirected = logged_in_client.get(
+            "/login?next=https://example.com/phishing", follow_redirects=False
+        )
+        self.assertEqual(redirected.status_code, 302)
+        self.assertEqual(redirected.headers["Location"], "/admin")
+
+    def test_exports_neutralize_spreadsheet_formulas(self):
+        database, user, record, _transformer = build_fixture()
+        update_equipment_details(
+            database,
+            record["equipment_id"],
+            {
+                "equipment_identification": "=HYPERLINK(\"https://example.com\")",
+                "specification": "240 SQMM",
+                "vendor_name": "Polycab",
+            },
+            user,
+        )
+        csv_text = export_equipment_csv(database, project="100 MW AKOLA SITE")
+        self.assertIn("'=HYPERLINK", csv_text)
 
 
 if __name__ == "__main__":

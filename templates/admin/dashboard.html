@@ -427,7 +427,7 @@
       <form action="{{ url_for('admin_create_equipment') }}" method="post" class="row g-2 align-items-end">
         <input type="hidden" name="project" value="{{ project }}">
         <input type="hidden" name="block" value="{{ block }}">
-        <div class="col-12 col-lg-8">
+        <div class="col-12 col-lg-6">
           <label for="equipment_template_id" class="form-label">Checklist type</label>
           <select id="equipment_template_id" name="template_id" class="form-select" required>
             <option value="">Select checklist</option>
@@ -436,14 +436,26 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-7 col-lg-2">
+        <div class="col-5 col-lg-2">
           <label for="equipment_record_number" class="form-label">Record No.</label>
           <input id="equipment_record_number" name="record_number" class="form-control" value="01" maxlength="30" required>
         </div>
-        <div class="col-5 col-lg-2 d-grid">
+        <div class="col-7 col-lg-4">
+          <label for="equipment_identification" class="form-label">Equipment / Circuit ID</label>
+          <input id="equipment_identification" name="equipment_identification" class="form-control" maxlength="120" placeholder="e.g. SCB-1">
+        </div>
+        <div class="col-12 col-md-6">
+          <label for="equipment_specification" class="form-label">Size / Rating / Specification</label>
+          <input id="equipment_specification" name="specification" class="form-control" maxlength="160" placeholder="e.g. 240 SQMM or 400 SQMM">
+        </div>
+        <div class="col-12 col-md-4">
+          <label for="equipment_vendor_name" class="form-label">Vendor / Manufacturer</label>
+          <input id="equipment_vendor_name" name="vendor_name" class="form-control" maxlength="120" placeholder="Enter vendor name">
+        </div>
+        <div class="col-12 col-md-2 d-grid">
           <button class="btn btn-primary" type="submit">
             <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
-            Open
+            Create / Open
           </button>
         </div>
       </form>
@@ -478,6 +490,12 @@
                 <td>
                   <strong>{{ record.template_name }}</strong>
                   <small class="d-block text-muted">{{ record.format_no }}</small>
+                  {% if record.equipment_identification or record.specification %}
+                    <small class="d-block equipment-row-detail">
+                      {{ record.equipment_identification or "ID not set" }}{% if record.specification %} · {{ record.specification }}{% endif %}
+                    </small>
+                  {% endif %}
+                  {% if record.vendor_name %}<small class="d-block text-muted">Vendor: {{ record.vendor_name }}</small>{% endif %}
                 </td>
                 <td>{{ record.record_number }}</td>
                 <td>{{ record.counts.completed }} / {{ record.counts.total }}</td>

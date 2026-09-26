@@ -5,6 +5,11 @@
     na: "text-bg-secondary"
   };
   const baseUrl = `/api/equipment/${encodeURIComponent(window.equipmentId)}`;
+  const detailsForm = document.getElementById("equipmentDetailsForm");
+  const identificationInput = document.getElementById("equipmentIdentification");
+  const specificationInput = document.getElementById("equipmentSpecification");
+  const vendorInput = document.getElementById("equipmentVendor");
+  const detailInputs = [identificationInput, specificationInput, vendorInput].filter(Boolean);
 
   function labelFor(status) {
     return window.statusLabels[status] || status;
@@ -18,6 +23,28 @@
     document.getElementById("totalCountB").textContent = counts.total;
     document.getElementById("progressValue").textContent = counts.progress + "%";
     document.getElementById("progressBar").style.width = counts.progress + "%";
+  }
+
+  function setText(id, value, fallback) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value || fallback;
+  }
+
+  function renderDetails(payload) {
+    setText("equipmentIdentificationHeader", payload.equipment_identification, "Identification not set");
+    setText("equipmentSpecificationHeader", payload.specification, "Specification not set");
+    setText("equipmentIdentificationValue", payload.equipment_identification, "-");
+    setText("equipmentSpecificationValue", payload.specification, "-");
+    setText("equipmentVendorValue", payload.vendor_name, "-");
+
+    const detailsFocused = detailInputs.includes(document.activeElement);
+    if (detailInputs.length && (detailsForm.dataset.saving === "true" || (!detailsFocused && detailsForm.dataset.dirty !== "true"))) {
+      identificationInput.value = payload.equipment_identification || "";
+      specificationInput.value = payload.specification || "";
+      vendorInput.value = payload.vendor_name || "";
+      detailInputs.forEach(function (input) { input.dataset.previousValue = input.value; });
+      detailsForm.dataset.dirty = "false";
+    }
   }
 
   function renderItem(item) {
@@ -69,6 +96,7 @@
 
   function renderRecord(payload) {
     updateSummary(payload.counts);
+    renderDetails(payload);
     payload.checklist.forEach(renderItem);
     const finalInput = document.getElementById("finalRemark");
     const finalMeta = document.getElementById("finalRemarkMeta");
@@ -228,5 +256,47 @@
   if (finalSave && finalInput) finalSave.addEventListener("click", function () { saveFinal(finalInput.value); });
   if (finalClear && finalInput) finalClear.addEventListener("click", function () { finalInput.value = ""; saveFinal(""); });
 
-  setInterval(refreshRecord, 5000);
+  if (detailsForm) {
+    detailsForm.dataset.dirty = "false";
+    detailInputs.forEach(function (input) {
+      input.dataset.previousValue = input.value;
+      input.addEventListener("input", function () {
+        detailsForm.dataset.dirty = String(detailInputs.some(function (candidate) {
+          return candidate.value !== candidate.dataset.previousValue;
+        }));
+      });
+    });
+    detailsForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const button = document.getElementById("saveEquipmentDetails");
+      const status = document.getElementById("equipmentDetailsStatus");
+      detailsForm.dataset.saving = "true";
+      if (button) button.disabled = true;
+      if (status) status.textContent = "Saving...";
+      try {
+        const payload = await post(`${baseUrl}/details`, {
+          equipment_identification: identificationInput.value,
+          specification: specificationInput.value,
+          vendor_name: vendorInput.value
+        });
+        renderRecord(payload);
+        if (status) status.textContent = "Details saved";
+      } catch (error) {
+        detailInputs.forEach(function (input) {
+          input.value = input.dataset.previousValue || "";
+        });
+        if (status) status.textContent = "Save failed";
+        alert(error.message);
+      } finally {
+        detailsForm.dataset.saving = "false";
+        if (button) button.disabled = false;
+      }
+    });
+  }
+
+  setInterval(refreshRecord, 15000);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) refreshRecord();
+  });
+  window.addEventListener("online", refreshRecord);
 })();

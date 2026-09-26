@@ -292,5 +292,9 @@
     });
   }
 
-  setInterval(refreshStructure, 5000);
+  setInterval(refreshStructure, 15000);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) refreshStructure();
+  });
+  window.addEventListener("online", refreshStructure);
 })();

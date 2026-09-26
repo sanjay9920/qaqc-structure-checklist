@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 
 import firebase_admin
 from firebase_admin import credentials
@@ -27,6 +28,7 @@ def initialize_firebase():
     return firebase_admin.initialize_app(options=options or None)
 
 
+@lru_cache(maxsize=1)
 def get_db():
     app = initialize_firebase()
     project_id = settings.firebase_project_id or app.project_id

@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from google.cloud import firestore
 
@@ -24,6 +25,25 @@ def normalize_equipment_id(equipment_id):
 def normalize_record_number(record_number):
     cleaned = re.sub(r"[^A-Z0-9]+", "-", (record_number or "01").strip().upper()).strip("-")
     return cleaned or "01"
+
+
+def _clean_detail(value, label, maximum):
+    cleaned = re.sub(r"\s+", " ", str(value or "").strip())
+    if len(cleaned) > maximum:
+        raise ValueError(f"{label} must be {maximum} characters or less.")
+    return cleaned
+
+
+def normalize_equipment_details(
+    vendor_name="", equipment_identification="", specification=""
+):
+    return {
+        "vendor_name": _clean_detail(vendor_name, "Vendor name", 120),
+        "equipment_identification": _clean_detail(
+            equipment_identification, "Equipment identification", 120
+        ),
+        "specification": _clean_detail(specification, "Specification", 160),
+    }
 
 
 def format_equipment_id(project, block, template_id, record_number="01"):
@@ -61,7 +81,7 @@ def build_default_equipment_checklist(template):
 
 def sync_equipment_points(ref, data, template):
     checklist = data.get("checklist", {}) or {}
-    changed = False
+    updates = {}
     for item in template["points"]:
         item_id = item["item_id"]
         if item_id not in checklist:
@@ -83,12 +103,12 @@ def sync_equipment_points(ref, data, template):
                 "updated_at": None,
                 "updated_by": None,
             }
-            changed = True
+            updates[f"checklist.{item_id}"] = checklist[item_id]
         elif checklist[item_id].get("label") != item["label"]:
             checklist[item_id]["label"] = item["label"]
-            changed = True
-    if changed:
-        ref.update({"checklist": checklist})
+            updates[f"checklist.{item_id}.label"] = item["label"]
+    if updates:
+        ref.update(updates)
         data["checklist"] = checklist
     return data
 
@@ -152,6 +172,9 @@ def build_equipment_view(equipment_id, data, template):
         "format_no": template.get("format_no", ""),
         "source_sheet": template.get("source_sheet", ""),
         "record_number": data.get("record_number", "01"),
+        "vendor_name": data.get("vendor_name", ""),
+        "equipment_identification": data.get("equipment_identification", ""),
+        "specification": data.get("specification", ""),
         "qr_url": data.get("qr_url") or equipment_url(equipment_id),
         "created_at": data.get("created_at"),
         "created_by": data.get("created_by"),
@@ -166,7 +189,16 @@ def build_equipment_view(equipment_id, data, template):
 
 
 def create_equipment_checklist(
-    db, project, block, template_id, record_number, created_by, base_url=None
+    db,
+    project,
+    block,
+    template_id,
+    record_number,
+    created_by,
+    base_url=None,
+    vendor_name="",
+    equipment_identification="",
+    specification="",
 ):
     project_id, block_id = normalize_scope(project, block)
     template = get_equipment_template(template_id)
@@ -175,6 +207,9 @@ def create_equipment_checklist(
     if not template:
         raise ValueError("Select a valid equipment checklist.")
     record_number = normalize_record_number(record_number)
+    details = normalize_equipment_details(
+        vendor_name, equipment_identification, specification
+    )
     equipment_id = format_equipment_id(
         project_id, block_id, template["template_id"], record_number
     )
@@ -183,6 +218,15 @@ def create_equipment_checklist(
     snap = ref.get()
     if snap.exists:
         data = sync_equipment_points(ref, snap.to_dict() or {}, template)
+        submitted_details = {key: value for key, value in details.items() if value}
+        if submitted_details:
+            return update_equipment_details(
+                db,
+                equipment_id,
+                submitted_details,
+                {"email": created_by, "uid": None},
+                partial=True,
+            )
         return build_equipment_view(equipment_id, data, template)
 
     timestamp = now_utc()
@@ -195,6 +239,7 @@ def create_equipment_checklist(
         "template_name": template["name"],
         "format_no": template.get("format_no", ""),
         "record_number": record_number,
+        **details,
         "qr_url": equipment_url(equipment_id, base_url),
         "checklist": build_default_equipment_checklist(template),
         "final_remark": "",
@@ -207,6 +252,67 @@ def create_equipment_checklist(
     }
     ref.set(data)
     return build_equipment_view(equipment_id, data, template)
+
+
+def update_equipment_details(db, equipment_id, details, user, partial=False):
+    if not isinstance(details, dict):
+        raise ValueError("Checklist details must be supplied as fields.")
+    allowed = {"vendor_name", "equipment_identification", "specification"}
+    if set(details) - allowed:
+        raise ValueError("Invalid checklist detail field.")
+
+    equipment_id = normalize_equipment_id(equipment_id)
+    ref = db.collection("equipment_checklists").document(equipment_id)
+    snap = ref.get()
+    if not snap.exists:
+        return None
+    data = snap.to_dict() or {}
+    current = {key: data.get(key, "") for key in allowed}
+    normalized = normalize_equipment_details(
+        details.get("vendor_name", current["vendor_name"] if partial else ""),
+        details.get(
+            "equipment_identification",
+            current["equipment_identification"] if partial else "",
+        ),
+        details.get("specification", current["specification"] if partial else ""),
+    )
+    if normalized == current:
+        return get_equipment_checklist(db, equipment_id)
+
+    timestamp_utc = now_utc()
+    timestamp_local = now_local()
+    email = user.get("email") or "unknown"
+    ref.update({**normalized, "updated_at": timestamp_utc, "updated_by": email})
+    db.collection("equipment_history").add(
+        {
+            "equipment_id": equipment_id,
+            "template_id": data.get("template_id", ""),
+            "template_name": data.get("template_name", ""),
+            "record_number": data.get("record_number", ""),
+            "project": normalize_project(data.get("project")),
+            "block": normalize_block(data.get("block")),
+            "item_id": "__details__",
+            "item_label": "Checklist details",
+            "change_type": "details",
+            "previous_status": "",
+            "new_status": "",
+            "previous_remark": "",
+            "new_remark": "",
+            "previous_value": "",
+            "new_value": "",
+            "previous_measurements": {},
+            "new_measurements": {},
+            "previous_details": current,
+            "new_details": normalized,
+            "updated_by": email,
+            "updated_by_uid": user.get("uid"),
+            "updated_at": timestamp_utc,
+            "updated_date": timestamp_local.strftime("%Y-%m-%d"),
+            "updated_time": timestamp_local.strftime("%H:%M:%S"),
+            "timezone": settings.app_timezone,
+        }
+    )
+    return get_equipment_checklist(db, equipment_id)
 
 
 def get_equipment_checklist(db, equipment_id):
@@ -226,7 +332,15 @@ def get_equipment_checklist(db, equipment_id):
 def list_equipment_checklists(db, project=None, block=None):
     project_id, block_id = normalize_scope(project, block)
     rows = []
-    for snap in db.collection("equipment_checklists").stream():
+    collection = db.collection("equipment_checklists")
+    docs = (
+        collection.where(
+            filter=firestore.FieldFilter("project", "==", project_id)
+        ).stream()
+        if project_id
+        else collection.stream()
+    )
+    for snap in docs:
         data = snap.to_dict() or {}
         record_project, record_block = normalize_scope(
             data.get("project"), data.get("block")
@@ -368,10 +482,47 @@ def _equipment_item_update(
                 "measurement_updated_by": email,
             }
         )
-    checklist[item_id] = item
-    ref.update(
-        {"checklist": checklist, "updated_at": timestamp_utc, "updated_by": email}
-    )
+    updates = {"updated_at": timestamp_utc, "updated_by": email}
+    if status is not None:
+        updates.update(
+            {
+                f"checklist.{item_id}.status": item["status"],
+                f"checklist.{item_id}.updated_at": item["updated_at"],
+                f"checklist.{item_id}.updated_by": item["updated_by"],
+            }
+        )
+    elif remark is not None:
+        updates.update(
+            {
+                f"checklist.{item_id}.remark": item["remark"],
+                f"checklist.{item_id}.remark_updated_at": item[
+                    "remark_updated_at"
+                ],
+                f"checklist.{item_id}.remark_updated_by": item[
+                    "remark_updated_by"
+                ],
+            }
+        )
+    else:
+        updates.update(
+            {
+                f"checklist.{item_id}.value": item["value"],
+                f"checklist.{item_id}.value_updated_at": item[
+                    "value_updated_at"
+                ],
+                f"checklist.{item_id}.value_updated_by": item[
+                    "value_updated_by"
+                ],
+                f"checklist.{item_id}.measurements": item["measurements"],
+                f"checklist.{item_id}.measurement_updated_at": item[
+                    "measurement_updated_at"
+                ],
+                f"checklist.{item_id}.measurement_updated_by": item[
+                    "measurement_updated_by"
+                ],
+            }
+        )
+    ref.update(updates)
 
     if status is not None:
         changed = previous_status != status
@@ -403,6 +554,8 @@ def _equipment_item_update(
                     if measurements is not None or value is not None
                     else previous_measurements
                 ),
+                "previous_details": {},
+                "new_details": {},
                 "updated_by": email,
                 "updated_by_uid": user.get("uid"),
                 "updated_at": timestamp_utc,
@@ -475,6 +628,8 @@ def update_equipment_final_remark(db, equipment_id, remark, user):
                 "new_value": "",
                 "previous_measurements": {},
                 "new_measurements": {},
+                "previous_details": {},
+                "new_details": {},
                 "updated_by": email,
                 "updated_by_uid": user.get("uid"),
                 "updated_at": timestamp_utc,
@@ -494,6 +649,10 @@ def get_equipment_history(db, equipment_id=None, project=None, block=None, limit
                 "equipment_id", "==", normalize_equipment_id(equipment_id)
             )
         ).stream()
+    elif project_id:
+        docs = db.collection("equipment_history").where(
+            filter=firestore.FieldFilter("project", "==", project_id)
+        ).stream()
     else:
         docs = db.collection("equipment_history").stream()
     rows = []
@@ -510,8 +669,9 @@ def get_equipment_history(db, equipment_id=None, project=None, block=None, limit
         rows.append(data)
     rows.sort(
         key=lambda item: (
-            item.get("updated_date", ""),
-            item.get("updated_time", ""),
+            item["updated_at"].timestamp()
+            if isinstance(item.get("updated_at"), datetime)
+            else 0
         ),
         reverse=True,
     )

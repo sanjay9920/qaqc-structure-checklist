@@ -151,6 +151,16 @@ body {
   overflow-wrap: anywhere;
 }
 
+.equipment-identity-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  color: #243b68;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
 .structure-header-actions {
   display: flex;
   align-items: center;
@@ -558,6 +568,17 @@ body {
 .equipment-create-panel {
   margin-bottom: 1rem;
   border-top: 4px solid var(--blue);
+}
+
+.equipment-details-panel {
+  margin-bottom: 1rem;
+  border-left: 4px solid var(--blue);
+}
+
+.equipment-row-detail {
+  color: #243b68;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .catalog-count {

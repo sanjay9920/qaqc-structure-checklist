@@ -34,11 +34,25 @@ def _measurement_history_text(row, key):
     return json.dumps(values, ensure_ascii=False, sort_keys=True) if values else ""
 
 
+def _safe_spreadsheet_value(value):
+    if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
+def _write_row(writer, values):
+    writer.writerow([_safe_spreadsheet_value(value) for value in values])
+
+
+def _append_row(sheet, values):
+    sheet.append([_safe_spreadsheet_value(value) for value in values])
+
+
 def export_structures_csv(db, project=None, block=None):
     output = StringIO()
     writer = csv.writer(output)
     project_display_names = get_project_display_names(db)
-    writer.writerow(
+    _write_row(writer,
         [
             "Project",
             "Block",
@@ -59,7 +73,7 @@ def export_structures_csv(db, project=None, block=None):
     for structure in list_structures(db, project=project, block=block):
         counts = structure["counts"]
         for item in structure["checklist"]:
-            writer.writerow(
+            _write_row(writer,
                 [
                     _project_label(project_display_names, structure.get("project", "")),
                     structure.get("block", ""),
@@ -84,7 +98,7 @@ def export_history_csv(db, project=None, block=None):
     output = StringIO()
     writer = csv.writer(output)
     project_display_names = get_project_display_names(db)
-    writer.writerow(
+    _write_row(writer,
         [
             "Project",
             "Block",
@@ -102,7 +116,7 @@ def export_history_csv(db, project=None, block=None):
         ]
     )
     for row in get_history(db, project=project, block=block, limit=100000):
-        writer.writerow(
+        _write_row(writer,
             [
                 _project_label(project_display_names, row.get("project", "")),
                 row.get("block", ""),
@@ -126,13 +140,16 @@ def export_equipment_csv(db, project=None, block=None):
     output = StringIO()
     writer = csv.writer(output)
     project_display_names = get_project_display_names(db)
-    writer.writerow(
+    _write_row(writer,
         [
             "Project",
             "Block",
             "Checklist Type",
             "Format No.",
             "Record No.",
+            "Equipment / Circuit ID",
+            "Size / Rating / Specification",
+            "Vendor / Manufacturer",
             "Equipment Checklist ID",
             "Checklist Point",
             "Activity / Section",
@@ -155,13 +172,16 @@ def export_equipment_csv(db, project=None, block=None):
     for record in list_equipment_checklists(db, project=project, block=block):
         counts = record["counts"]
         for item in record["checklist"]:
-            writer.writerow(
+            _write_row(writer,
                 [
                     _project_label(project_display_names, record.get("project", "")),
                     record.get("block", ""),
                     record.get("template_name", ""),
                     record.get("format_no", ""),
                     record.get("record_number", ""),
+                    record.get("equipment_identification", ""),
+                    record.get("specification", ""),
+                    record.get("vendor_name", ""),
                     record.get("equipment_id", ""),
                     item.get("label", ""),
                     item.get("section", ""),
@@ -188,7 +208,7 @@ def export_equipment_history_csv(db, project=None, block=None):
     output = StringIO()
     writer = csv.writer(output)
     project_display_names = get_project_display_names(db)
-    writer.writerow(
+    _write_row(writer,
         [
             "Project",
             "Block",
@@ -205,6 +225,8 @@ def export_equipment_history_csv(db, project=None, block=None):
             "New Value",
             "Previous Measurements",
             "New Measurements",
+            "Previous Details",
+            "New Details",
             "Updated By",
             "Date",
             "Time",
@@ -212,7 +234,7 @@ def export_equipment_history_csv(db, project=None, block=None):
         ]
     )
     for row in get_equipment_history(db, project=project, block=block, limit=100000):
-        writer.writerow(
+        _write_row(writer,
             [
                 _project_label(project_display_names, row.get("project", "")),
                 row.get("block", ""),
@@ -229,6 +251,8 @@ def export_equipment_history_csv(db, project=None, block=None):
                 row.get("new_value", ""),
                 _measurement_history_text(row, "previous_measurements"),
                 _measurement_history_text(row, "new_measurements"),
+                _measurement_history_text(row, "previous_details"),
+                _measurement_history_text(row, "new_details"),
                 row.get("updated_by", ""),
                 row.get("updated_date", ""),
                 row.get("updated_time", ""),
@@ -243,7 +267,7 @@ def export_all_xlsx(db, project=None, block=None):
     project_display_names = get_project_display_names(db)
     structures_sheet = workbook.active
     structures_sheet.title = "Structures"
-    structures_sheet.append(
+    _append_row(structures_sheet,
         [
             "Project",
             "Block",
@@ -264,7 +288,7 @@ def export_all_xlsx(db, project=None, block=None):
     for structure in list_structures(db, project=project, block=block):
         counts = structure["counts"]
         for item in structure["checklist"]:
-            structures_sheet.append(
+            _append_row(structures_sheet,
                 [
                     _project_label(project_display_names, structure.get("project", "")),
                     structure.get("block", ""),
@@ -284,7 +308,7 @@ def export_all_xlsx(db, project=None, block=None):
             )
 
     history_sheet = workbook.create_sheet("History")
-    history_sheet.append(
+    _append_row(history_sheet,
         [
             "Project",
             "Block",
@@ -302,7 +326,7 @@ def export_all_xlsx(db, project=None, block=None):
         ]
     )
     for row in get_history(db, project=project, block=block, limit=100000):
-        history_sheet.append(
+        _append_row(history_sheet,
             [
                 _project_label(project_display_names, row.get("project", "")),
                 row.get("block", ""),
@@ -321,13 +345,16 @@ def export_all_xlsx(db, project=None, block=None):
         )
 
     equipment_sheet = workbook.create_sheet("Equipment Checklists")
-    equipment_sheet.append(
+    _append_row(equipment_sheet,
         [
             "Project",
             "Block",
             "Checklist Type",
             "Format No.",
             "Record No.",
+            "Equipment / Circuit ID",
+            "Size / Rating / Specification",
+            "Vendor / Manufacturer",
             "Equipment Checklist ID",
             "Checklist Point",
             "Activity / Section",
@@ -350,13 +377,16 @@ def export_all_xlsx(db, project=None, block=None):
     for record in list_equipment_checklists(db, project=project, block=block):
         counts = record["counts"]
         for item in record["checklist"]:
-            equipment_sheet.append(
+            _append_row(equipment_sheet,
                 [
                     _project_label(project_display_names, record.get("project", "")),
                     record.get("block", ""),
                     record.get("template_name", ""),
                     record.get("format_no", ""),
                     record.get("record_number", ""),
+                    record.get("equipment_identification", ""),
+                    record.get("specification", ""),
+                    record.get("vendor_name", ""),
                     record.get("equipment_id", ""),
                     item.get("label", ""),
                     item.get("section", ""),
@@ -378,7 +408,7 @@ def export_all_xlsx(db, project=None, block=None):
             )
 
     equipment_history_sheet = workbook.create_sheet("Equipment History")
-    equipment_history_sheet.append(
+    _append_row(equipment_history_sheet,
         [
             "Project",
             "Block",
@@ -395,6 +425,8 @@ def export_all_xlsx(db, project=None, block=None):
             "New Value",
             "Previous Measurements",
             "New Measurements",
+            "Previous Details",
+            "New Details",
             "Updated By",
             "Date",
             "Time",
@@ -402,7 +434,7 @@ def export_all_xlsx(db, project=None, block=None):
         ]
     )
     for row in get_equipment_history(db, project=project, block=block, limit=100000):
-        equipment_history_sheet.append(
+        _append_row(equipment_history_sheet,
             [
                 _project_label(project_display_names, row.get("project", "")),
                 row.get("block", ""),
@@ -419,6 +451,8 @@ def export_all_xlsx(db, project=None, block=None):
                 row.get("new_value", ""),
                 _measurement_history_text(row, "previous_measurements"),
                 _measurement_history_text(row, "new_measurements"),
+                _measurement_history_text(row, "previous_details"),
+                _measurement_history_text(row, "new_details"),
                 row.get("updated_by", ""),
                 row.get("updated_date", ""),
                 row.get("updated_time", ""),
