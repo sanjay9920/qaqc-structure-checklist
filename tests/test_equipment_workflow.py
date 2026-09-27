@@ -463,8 +463,17 @@ class EquipmentWorkflowTests(unittest.TestCase):
 
     def test_every_excel_checklist_has_correct_observation_schema(self):
         catalog = get_equipment_catalog()
-        self.assertEqual(len(catalog), 44)
-        self.assertEqual(sum(len(item["points"]) for item in catalog), 576)
+        self.assertEqual(len(catalog), 45)
+        self.assertEqual(sum(len(item["points"]) for item in catalog), 586)
+        names = {item["name"] for item in catalog}
+        self.assertTrue(
+            {
+                "AC Cable Laying",
+                "DC Cable Laying",
+                "AC Cable Termination",
+                "DC Cable Termination",
+            }.issubset(names)
+        )
         self.assertTrue(
             all(point.get("measurement_fields") for item in catalog for point in item["points"])
         )
@@ -516,14 +525,17 @@ class EquipmentWorkflowTests(unittest.TestCase):
         page = client.get(url)
         self.assertEqual(page.status_code, 200)
         for expected in [
-            b"44 types",
-            b"Cable Laying",
+            b"45 types",
+            b"AC Cable Laying",
+            b"DC Cable Laying",
+            b"AC Cable Termination",
+            b"DC Cable Termination",
             b"12 points",
             b"Completed points",
             b"SCB-1",
             b"240 SQMM",
             b"Checklist dashboards",
-            b"44 dashboards",
+            b"45 dashboards",
             b"Open Dashboard",
             b"in progress",
             b"not started",
@@ -537,7 +549,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         ).get_json()
         self.assertEqual(payload["equipment_summary"]["total_records"], 2)
         self.assertEqual(payload["equipment_records"][0]["equipment_id"], record["equipment_id"])
-        self.assertEqual(len(payload["equipment_template_summaries"]), 44)
+        self.assertEqual(len(payload["equipment_template_summaries"]), 45)
         cable_summary = next(
             item
             for item in payload["equipment_template_summaries"]

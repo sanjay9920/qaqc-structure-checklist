@@ -1,10 +1,10 @@
 {
   "version": 3,
-  "template_count": 44,
+  "template_count": 45,
   "templates": [
     {
       "template_id": "cable-laying",
-      "name": "Cable Laying",
+      "name": "AC Cable Laying",
       "source_sheet": "Cable Laying",
       "format_no": "TPS-LP-EL-14",
       "order": 10,
@@ -253,7 +253,7 @@
     },
     {
       "template_id": "string-cable",
-      "name": "String Cable",
+      "name": "DC Cable Laying",
       "source_sheet": "String Cable",
       "format_no": "TPS-LP-EL-14",
       "order": 20,
@@ -8965,7 +8965,7 @@
     },
     {
       "template_id": "lt-cable-termination",
-      "name": "LT Cable Termination",
+      "name": "AC Cable Termination",
       "source_sheet": "LT Cable Termination",
       "format_no": "TPS-LP-EL-34",
       "order": 240,
@@ -16192,6 +16192,135 @@
           "value_enabled": true,
           "value_label": "LV-1 R-E",
           "value_hint": "Enter LV-1 R-E (ohm)"
+        }
+      ]
+    },
+    {
+      "template_id": "dc-cable-termination",
+      "name": "DC Cable Termination",
+      "source_sheet": "DC Cable Termination",
+      "format_no": "",
+      "order": 245,
+      "points": [
+        {
+          "item_id": "point-001",
+          "label": "Cable size, type and polarity verification",
+          "order": 10,
+          "check_type": "Visual",
+          "acceptance_criteria": "Cable size and type shall match the approved drawing; positive and negative polarity shall be identified correctly",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Observation / Result", "unit": "", "placeholder": "Enter cable size, type and polarity", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Observation / Result",
+          "value_hint": "Enter cable size, type and polarity"
+        },
+        {
+          "item_id": "point-002",
+          "label": "Cable end condition and stripping length",
+          "order": 20,
+          "check_type": "Measurement",
+          "acceptance_criteria": "Cable shall be free from damage and stripped to the connector manufacturer's specified length",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Stripping Length / Observation", "unit": "mm", "placeholder": "Enter stripping length and observation", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Stripping Length / Observation",
+          "value_hint": "Enter stripping length and observation"
+        },
+        {
+          "item_id": "point-003",
+          "label": "Connector and contact compatibility",
+          "order": 30,
+          "check_type": "Visual",
+          "acceptance_criteria": "Male/female connector, contact and cable size shall be compatible and from an approved make",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Connector Make / Observation", "unit": "", "placeholder": "Enter connector make and observation", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Connector Make / Observation",
+          "value_hint": "Enter connector make and observation"
+        },
+        {
+          "item_id": "point-004",
+          "label": "Contact crimping with approved tool",
+          "order": 40,
+          "check_type": "Visual",
+          "acceptance_criteria": "Contact shall be crimped with the approved calibrated tool and the conductor shall be fully inserted",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Tool ID / Observation", "unit": "", "placeholder": "Enter crimping tool ID and observation", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Tool ID / Observation",
+          "value_hint": "Enter crimping tool ID and observation"
+        },
+        {
+          "item_id": "point-005",
+          "label": "Crimped contact pull test",
+          "order": 50,
+          "check_type": "Test",
+          "acceptance_criteria": "Crimped contact shall pass the specified pull test without movement or damage",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Pull Test Result", "unit": "", "placeholder": "Enter pull test result", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Pull Test Result",
+          "value_hint": "Enter pull test result"
+        },
+        {
+          "item_id": "point-006",
+          "label": "Connector assembly and locking",
+          "order": 60,
+          "check_type": "Visual",
+          "acceptance_criteria": "Seal, gland nut and connector housing shall be assembled completely and locked as recommended by the manufacturer",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Observation / Result", "unit": "", "placeholder": "Enter assembly and locking observation", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Observation / Result",
+          "value_hint": "Enter assembly and locking observation"
+        },
+        {
+          "item_id": "point-007",
+          "label": "Positive and negative connector mating",
+          "order": 70,
+          "check_type": "Visual",
+          "acceptance_criteria": "Connectors shall be fully mated with an audible lock and no cross-mating of incompatible connectors",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Observation / Result", "unit": "", "placeholder": "Enter connector mating observation", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Observation / Result",
+          "value_hint": "Enter connector mating observation"
+        },
+        {
+          "item_id": "point-008",
+          "label": "Polarity and continuity test",
+          "order": 80,
+          "check_type": "Test",
+          "acceptance_criteria": "Polarity and continuity shall be correct as per approved schematic",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Test Result / Reading", "unit": "", "placeholder": "Enter polarity and continuity result", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Test Result / Reading",
+          "value_hint": "Enter polarity and continuity result"
+        },
+        {
+          "item_id": "point-009",
+          "label": "Cable dressing, bend radius and strain relief",
+          "order": 90,
+          "check_type": "Visual",
+          "acceptance_criteria": "Cable shall be dressed without sharp bends, tension or unsupported connector load",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Observation / Result", "unit": "", "placeholder": "Enter dressing and bend radius observation", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Observation / Result",
+          "value_hint": "Enter dressing and bend radius observation"
+        },
+        {
+          "item_id": "point-010",
+          "label": "Cable and termination identification",
+          "order": 100,
+          "check_type": "Visual",
+          "acceptance_criteria": "Cable tags, source, destination and polarity identification shall match the approved drawing",
+          "section": "",
+          "measurement_fields": [{"key": "observation", "label": "Cable ID / Observation", "unit": "", "placeholder": "Enter cable ID and observation", "default": ""}],
+          "value_enabled": true,
+          "value_label": "Cable ID / Observation",
+          "value_hint": "Enter cable ID and observation"
         }
       ]
     }
