@@ -1,6 +1,8 @@
 import copy
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from openpyxl import load_workbook
 
@@ -221,6 +223,51 @@ def build_test_app(database, logged_in=False):
 
 
 class EquipmentWorkflowTests(unittest.TestCase):
+    def test_admin_can_recreate_email_from_legacy_removed_user(self):
+        database = FakeFirestore()
+        database.collection("checklist_items").document("dummy").set(
+            {"label": "Dummy", "order": 10, "active": True}
+        )
+        database.collection("projects").document("PROJECT-1").set(
+            {"project_id": "PROJECT-1", "display_name": "Project 1"}
+        )
+        client = build_test_app(database, logged_in=True).test_client()
+        legacy_user = SimpleNamespace(uid="legacy-uid", disabled=True)
+        new_user = SimpleNamespace(uid="new-uid")
+        email_exists = app_module.firebase_auth.EmailAlreadyExistsError(
+            "Email exists", None, None
+        )
+
+        with (
+            patch.object(app_module, "initialize_firebase"),
+            patch.object(
+                app_module.firebase_auth,
+                "create_user",
+                side_effect=[email_exists, new_user],
+            ) as create_user,
+            patch.object(
+                app_module.firebase_auth,
+                "get_user_by_email",
+                return_value=legacy_user,
+            ),
+            patch.object(app_module.firebase_auth, "delete_user") as delete_user,
+            patch.object(app_module.firebase_auth, "set_custom_user_claims"),
+        ):
+            response = client.post(
+                "/admin/users",
+                data={
+                    "name": "Recreated Worker",
+                    "email": "worker@example.com",
+                    "password": "secret123",
+                    "role": "worker",
+                    "projects": "PROJECT-1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(create_user.call_count, 2)
+        delete_user.assert_called_once_with("legacy-uid")
+
     def test_checklist_item_delete_is_permanent_and_cascades(self):
         database = FakeFirestore()
         database.collection("checklist_items").document("alignment").set(

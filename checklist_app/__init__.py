@@ -238,6 +238,27 @@ def create_app():
         }
         return messages.get(str(error), "Request failed. Please try again.")
 
+    def create_auth_user(name, email, password):
+        initialize_firebase()
+        try:
+            return firebase_auth.create_user(
+                email=email,
+                password=password,
+                display_name=name,
+                disabled=False,
+            )
+        except firebase_auth.EmailAlreadyExistsError:
+            existing = firebase_auth.get_user_by_email(email)
+            if not existing.disabled:
+                raise
+            firebase_auth.delete_user(existing.uid)
+            return firebase_auth.create_user(
+                email=email,
+                password=password,
+                display_name=name,
+                disabled=False,
+            )
+
     def create_session_response(id_token):
         expires_in = timedelta(days=5)
         initialize_firebase()
@@ -679,13 +700,7 @@ def create_app():
             return jsonify({"error": "Password must be at least 6 characters."}), 400
 
         try:
-            initialize_firebase()
-            user = firebase_auth.create_user(
-                email=email,
-                password=password,
-                display_name=name,
-                disabled=False,
-            )
+            user = create_auth_user(name, email, password)
             firebase_auth.set_custom_user_claims(
                 user.uid, user_claim_payload(False, False, [])
             )
@@ -1100,13 +1115,7 @@ def create_app():
             return redirect(url_for("admin_users"))
 
         try:
-            initialize_firebase()
-            user = firebase_auth.create_user(
-                email=email,
-                password=password,
-                display_name=name,
-                disabled=False,
-            )
+            user = create_auth_user(name, email, password)
             is_admin = role == "admin"
             firebase_auth.set_custom_user_claims(
                 user.uid,
