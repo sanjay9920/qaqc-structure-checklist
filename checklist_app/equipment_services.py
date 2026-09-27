@@ -533,12 +533,7 @@ def build_equipment_family_summaries(records):
     families = {}
     for record in records or []:
         identity = str(record.get("equipment_identification") or "").strip()
-        profile = record.get("identity_profile") or {}
-        family_name = (
-            str(record.get("template_name") or "Cable circuits").upper()
-            if profile.get("type") == "cable"
-            else _equipment_family(identity)
-        )
+        family_name = _equipment_family(identity)
         family = families.setdefault(
             family_name,
             {"records": [], "equipment": {}, "blocks": set(), "templates": {}},

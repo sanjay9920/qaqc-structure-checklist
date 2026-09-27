@@ -396,15 +396,15 @@
     <div class="equipment-table-heading">
       <div>
         <p class="eyebrow mb-1">{% if block %}Block {{ block | block_label }}{% else %}Entire project{% endif %}</p>
-        <h2 id="scopeWorkRegisterTitle" class="h5 mb-1">Equipment and circuit register</h2>
-        <p class="dashboard-scope mb-0">Unique equipment quantity, checklist state and point progress across all work.</p>
+        <h2 id="scopeWorkRegisterTitle" class="h5 mb-1">Equipment, asset and circuit register</h2>
+        <p class="dashboard-scope mb-0">Grouped by actual equipment or circuit ID. Checklist types are tracked separately below.</p>
       </div>
       <span class="catalog-count"><span id="equipmentFamilyCount">{{ equipment_family_summaries | length }}</span>&nbsp;families</span>
     </div>
     <div class="work-register-toolbar">
       <div class="input-group input-group-sm">
         <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
-        <input id="equipmentFamilySearch" class="form-control" type="search" placeholder="Search SCB, IDT, equipment or checklist" aria-label="Search equipment register">
+        <input id="equipmentFamilySearch" class="form-control" type="search" placeholder="Search SCB, IDT, circuit or asset ID" aria-label="Search equipment register">
       </div>
       <select id="equipmentFamilyStatus" class="form-select form-select-sm" aria-label="Filter equipment register">
         <option value="all">All equipment</option>
