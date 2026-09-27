@@ -862,9 +862,10 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"not started",
             b"ID missing",
             b"Search checklist, equipment or vendor",
-            b"Equipment, asset and circuit register",
-            b"Created checklist type status",
+            b"Combined checklist status",
+            b"Click a card for its detailed dashboard",
             b"compact-tracking-grid compact-scroll-area",
+            b"compact-card-link",
             b"mini-progress-ring",
             b"checklist-dashboard-grid",
             b"checklist-library-panel",
@@ -877,6 +878,11 @@ class EquipmentWorkflowTests(unittest.TestCase):
             self.assertIn(expected, page.data)
         self.assertNotIn(b"checklist-library-panel mb-3\" open", page.data)
         self.assertNotIn(b'class="structure-tools" open', page.data)
+        self.assertNotIn(b"Equipment, asset and circuit register", page.data)
+        self.assertIn(
+            b"/admin/equipment-dashboard/cable-laying?project=100-MW-AKOLA-SITE&amp;block=BLOCK-1",
+            page.data,
+        )
 
         expanded = client.get(url + "&manage_structures=1")
         self.assertIn(b'class="structure-tools" open', expanded.data)
@@ -931,7 +937,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Equipment checklists",
             b"Combined QA/QC work",
             b"Open Block Dashboard",
-            b"Created checklist type status",
+            b"Combined checklist status",
             b"block-portfolio-grid",
             b"mini-progress-ring",
             b"Smart QA/QC tracking",

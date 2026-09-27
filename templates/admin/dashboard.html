@@ -392,60 +392,12 @@
   {% endif %}
 
   {% if equipment_summary.total_records %}
-  {% if block %}
-  <section class="admin-panel scope-work-register mb-3" aria-labelledby="scopeWorkRegisterTitle">
-    <div class="equipment-table-heading">
-      <div>
-        <p class="eyebrow mb-1">{% if block %}Block {{ block | block_label }}{% else %}Entire project{% endif %}</p>
-        <h2 id="scopeWorkRegisterTitle" class="h5 mb-1">Equipment, asset and circuit register</h2>
-        <p class="dashboard-scope mb-0">Grouped by actual equipment or circuit ID. Checklist types are tracked separately below.</p>
-      </div>
-      <span class="catalog-count"><span id="equipmentFamilyCount">{{ equipment_family_summaries | length }}</span>&nbsp;families</span>
-    </div>
-    <div class="work-register-toolbar">
-      <div class="input-group input-group-sm">
-        <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
-        <input id="equipmentFamilySearch" class="form-control" type="search" placeholder="Search SCB, IDT, circuit or asset ID" aria-label="Search equipment register">
-      </div>
-      <select id="equipmentFamilyStatus" class="form-select form-select-sm" aria-label="Filter equipment register">
-        <option value="all">All equipment</option>
-        <option value="pending">Pending equipment</option>
-        <option value="in_progress">In progress</option>
-        <option value="completed">Fully completed</option>
-      </select>
-    </div>
-    <div id="equipmentFamilyBody" class="compact-tracking-grid compact-scroll-area">
-      {% for family in equipment_family_summaries %}
-        <article class="compact-tracking-card" data-family-search="{{ (family.family ~ ' ' ~ (family.checklist_types | join(' ')) ~ ' ' ~ (family.equipment | map(attribute='label') | join(' ')) ~ ' ' ~ (family.blocks | join(' '))) | lower }}" data-pending="{{ family.pending_equipment }}" data-in-progress="{{ family.in_progress_equipment }}" data-completed="{{ family.completed_equipment }}">
-          <div class="compact-tracking-head">
-            <div class="compact-tracking-title"><strong>{{ family.family }}</strong><small>{{ family.equipment_count }} equipment · {{ family.total_records }} records</small></div>
-            <div class="mini-progress-ring" style="--progress: {{ family.progress }}" role="img" aria-label="{{ family.progress }} percent complete"><span>{{ family.progress }}%</span></div>
-          </div>
-          <div class="compact-status-row">
-            <span class="status-complete"><b>{{ family.completed_equipment }}</b> done</span>
-            <span class="status-progress"><b>{{ family.in_progress_equipment }}</b> active</span>
-            <span class="status-pending"><b>{{ family.not_started_equipment }}</b> waiting</span>
-          </div>
-          <div class="compact-meta-row"><span>{{ family.completed_points }}/{{ family.total_points }} points</span><span>{{ family.block_count }} block{% if family.block_count != 1 %}s{% endif %}</span><span>{{ family.checklist_type_count }} type{% if family.checklist_type_count != 1 %}s{% endif %}</span></div>
-          <div class="compact-id-line">
-            {% for equipment in family.equipment %}<span class="equipment-state-{{ equipment.state }}">{% if not block or family.block_count > 1 %}B{{ equipment.block | block_label }} / {% endif %}{{ equipment.label }}</span>{% endfor %}
-            {% if family.additional_equipment_count %}<span>+{{ family.additional_equipment_count }}</span>{% endif %}
-          </div>
-          <div class="progress compact-progress-bar"><div class="progress-bar" style="width: {{ family.progress }}%"></div></div>
-        </article>
-      {% else %}
-        <div class="compact-empty-state">No equipment or circuit records created in this scope.</div>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
-
   <section class="admin-panel scope-checklist-register mb-3" aria-labelledby="scopeChecklistRegisterTitle">
     <div class="equipment-table-heading">
       <div>
         <p class="eyebrow mb-1">All checklist work</p>
-        <h2 id="scopeChecklistRegisterTitle" class="h5 mb-1">Created checklist type status</h2>
-        <p class="dashboard-scope mb-0">Every active checklist type with records, equipment and point-level progress.</p>
+        <h2 id="scopeChecklistRegisterTitle" class="h5 mb-1">Combined checklist status</h2>
+        <p class="dashboard-scope mb-0">Each card combines every record of that checklist type in this {% if block %}block{% else %}project{% endif %}. Click a card for its detailed dashboard.</p>
       </div>
       <span class="catalog-count"><span id="activeChecklistTypeCount">{{ equipment_summary.active_template_count }}</span>&nbsp;active types</span>
     </div>
