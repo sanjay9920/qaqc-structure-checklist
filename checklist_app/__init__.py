@@ -102,6 +102,7 @@ def create_app():
     app.secret_key = settings.session_secret
     app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
     dashboard_cache = {}
+    dashboard_source_cache = {}
     dashboard_cache_ttl = 60
 
     @app.errorhandler(ResourceExhausted)
@@ -195,6 +196,36 @@ def create_app():
 
     def clear_dashboard_cache():
         dashboard_cache.clear()
+        dashboard_source_cache.clear()
+
+    def cached_project_records(database):
+        cache_key = "project_records"
+        now = time.monotonic()
+        cached = dashboard_source_cache.get(cache_key)
+        if cached and now - cached["created"] <= dashboard_cache_ttl:
+            return cached["payload"]
+        records = list_project_records(database)
+        dashboard_source_cache[cache_key] = {
+            "created": now,
+            "payload": records,
+        }
+        return records
+
+    def cached_project_work(database, project_id):
+        cache_key = f"project_work:{project_id}"
+        now = time.monotonic()
+        cached = dashboard_source_cache.get(cache_key)
+        if cached and now - cached["created"] <= dashboard_cache_ttl:
+            return cached["payload"]
+        payload = {
+            "structures": list_structures(database, project=project_id),
+            "equipment": list_equipment_checklists(database, project=project_id),
+        }
+        dashboard_source_cache[cache_key] = {
+            "created": now,
+            "payload": payload,
+        }
+        return payload
 
     def firebase_auth_request(action, payload):
         if not settings.firebase_api_key:
@@ -537,13 +568,14 @@ def create_app():
             return cached["payload"]
 
         database = db()
+        all_project_records = (
+            project_records
+            if project_records is not None
+            else cached_project_records(database)
+        )
         project_records = [
             item
-            for item in (
-                project_records
-                if project_records is not None
-                else list_project_records(database)
-            )
+            for item in all_project_records
             if allowed_set is None or item["project_id"] in allowed_set
         ]
         project_display_names = {
@@ -558,16 +590,17 @@ def create_app():
             for item in project_records
         }
         project_block_count = project_block_counts.get(project_id, 0)
-        project_structures = (
-            list_structures(database, project=project_id)
+        project_work = (
+            cached_project_work(database, project_id)
             if project_id and (allowed_set is None or project_id in allowed_set)
-            else []
+            else {"structures": [], "equipment": []}
         )
-        equipment_records = (
-            list_equipment_checklists(database, project=project_id, block=block_id)
-            if project_id and (allowed_set is None or project_id in allowed_set)
-            else []
-        )
+        project_structures = project_work["structures"]
+        equipment_records = [
+            item
+            for item in project_work["equipment"]
+            if not block_id or item.get("block") == block_id
+        ]
         block_structure_count = 0
         if block_id:
             block_counts = project_block_structure_counts.get(project_id, {})
@@ -619,6 +652,14 @@ def create_app():
             for item in project_structures
             if not block_id or item.get("block") == block_id
         ]
+        next_structure_number = max(
+            (
+                int(extract_structure_number(item.get("structure_id", "")))
+                for item in scope_structures
+                if extract_structure_number(item.get("structure_id", "")).isdigit()
+            ),
+            default=0,
+        ) + 1
         payload = {
             "structures": structures,
             "equipment_records": equipment_records,
@@ -647,6 +688,15 @@ def create_app():
             "project_block_count": project_block_count,
             "block_structure_count": block_structure_count,
             "block": block_id,
+            "next_structure_id": (
+                format_structure_id(
+                    next_structure_number,
+                    project=project_id,
+                    block=block_id,
+                )
+                if project_id and block_id
+                else ""
+            ),
             "search": search,
             "projects": [item["project_id"] for item in project_records],
             "project_records": project_records,
@@ -1320,12 +1370,20 @@ def create_app():
         project = request.args.get("project", "").strip()
         block = request.args.get("block", "").strip()
         project_id, block_id = normalize_scope(project, block)
-        project_records, allowed_project_ids = dashboard_project_records_for_user(
-            g.user, list_project_records(db())
-        )
+        if g.user.get("is_admin") or g.user.get("all_projects"):
+            project_records = None
+            allowed_project_ids = None
+        else:
+            project_records, allowed_project_ids = dashboard_project_records_for_user(
+                g.user, cached_project_records(db())
+            )
         if project_id and not user_can_access_project(g.user, project_id):
             return dashboard_access_denied_response(project_id)
-        if not project_id and allowed_project_ids is not None and len(project_records) == 1:
+        if (
+            not project_id
+            and allowed_project_ids is not None
+            and len(project_records) == 1
+        ):
             return redirect(
                 url_for("admin_dashboard", project=project_records[0]["project_id"])
             )
@@ -1339,7 +1397,7 @@ def create_app():
         )
         create_id = normalize_structure_id(request.args.get("create_id", "").strip())
         if not create_id and project_id and block_id:
-            create_id = get_next_structure_id(db(), project=project_id, block=block_id)
+            create_id = payload["next_structure_id"]
         selected_structure = request.args.get("selected_structure", "").strip()
         selected_structure_number = 0
         if selected_structure:

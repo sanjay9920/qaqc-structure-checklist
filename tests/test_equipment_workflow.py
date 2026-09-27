@@ -5,9 +5,11 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from flask import Flask
 from openpyxl import load_workbook
 
 import checklist_app as app_module
+from checklist_app import auth as auth_module
 from checklist_app.dashboard_analytics import build_dashboard_intelligence
 from checklist_app.equipment_catalog import get_equipment_catalog, get_equipment_template
 from checklist_app.equipment_services import (
@@ -228,6 +230,74 @@ def build_test_app(database, logged_in=False):
 
 
 class EquipmentWorkflowTests(unittest.TestCase):
+    def test_session_claims_are_reused_during_fast_page_navigation(self):
+        auth_module._session_cache.clear()
+        app = Flask(__name__)
+        claims = {
+            "uid": "worker-1",
+            "email": "worker@example.com",
+            "projects": ["SITE ONE"],
+        }
+
+        with (
+            patch.object(auth_module, "initialize_firebase"),
+            patch.object(
+                auth_module.firebase_auth,
+                "verify_session_cookie",
+                return_value=claims,
+            ) as verify_session,
+        ):
+            for _ in range(2):
+                with app.test_request_context(
+                    headers={"Cookie": "firebase_session=session-token"}
+                ):
+                    user = auth_module.current_user()
+                    self.assertEqual(user["uid"], "worker-1")
+
+        self.assertEqual(verify_session.call_count, 1)
+
+    def test_dashboard_reuses_project_data_when_switching_blocks(self):
+        database, _user, _cable_laying, _transformer = build_fixture()
+        database.collection("projects").document("100-MW-AKOLA-SITE").set(
+            {
+                "project_id": "100-MW-AKOLA-SITE",
+                "display_name": "100 MW AKOLA SITE",
+                "block_count": 2,
+            }
+        )
+        original_list_project_records = app_module.list_project_records
+        original_list_structures = app_module.list_structures
+        original_list_equipment = app_module.list_equipment_checklists
+
+        with (
+            patch.object(
+                app_module,
+                "list_project_records",
+                wraps=original_list_project_records,
+            ) as list_projects_call,
+            patch.object(
+                app_module,
+                "list_structures",
+                wraps=original_list_structures,
+            ) as list_structures_call,
+            patch.object(
+                app_module,
+                "list_equipment_checklists",
+                wraps=original_list_equipment,
+            ) as list_equipment_call,
+        ):
+            app = build_test_app(database, logged_in=True)
+            client = app.test_client()
+            for block in ("BLOCK-1", "BLOCK-2"):
+                response = client.get(
+                    "/admin?project=100-MW-AKOLA-SITE&block=" + block
+                )
+                self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(list_projects_call.call_count, 1)
+        self.assertEqual(list_structures_call.call_count, 1)
+        self.assertEqual(list_equipment_call.call_count, 1)
+
     def test_equipment_family_summary_tracks_unique_units_and_all_work(self):
         records = [
             {
