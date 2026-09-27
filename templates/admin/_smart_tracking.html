@@ -1,0 +1,79 @@
+<section class="smart-tracking" aria-labelledby="smartTrackingTitle">
+  <div class="smart-tracking-header">
+    <div>
+      <p class="eyebrow mb-1">Smart QA/QC tracking</p>
+      <h2 id="smartTrackingTitle" class="h5 mb-1">Attention and next actions</h2>
+      <p class="dashboard-scope mb-0">Live priorities from pending points, update age and missing record details.</p>
+    </div>
+    <span class="smart-live-badge"><i class="bi bi-broadcast" aria-hidden="true"></i> Live</span>
+  </div>
+
+  <div id="smartTrackingContent">
+    {% if not smart_tracking.has_work %}
+      <div class="smart-empty-state">
+        <i class="bi bi-clipboard2-plus" aria-hidden="true"></i>
+        <div><strong>Tracking starts with the first checklist</strong><span>Create a structure or equipment checklist to see priorities, bottlenecks and stale work.</span></div>
+      </div>
+    {% else %}
+      <div class="smart-kpi-grid" aria-label="Smart tracking summary">
+        <div class="smart-kpi"><i class="bi bi-list-check" aria-hidden="true"></i><div><span>Open points</span><strong>{{ smart_tracking.pending_points }}</strong><small>{{ smart_tracking.open_records }} open records</small></div></div>
+        <div class="smart-kpi is-active"><i class="bi bi-activity" aria-hidden="true"></i><div><span>Active work</span><strong>{{ smart_tracking.active_work }}</strong><small>{{ smart_tracking.not_started }} not started</small></div></div>
+        <div class="smart-kpi{% if smart_tracking.stale_work %} is-warning{% endif %}"><i class="bi bi-clock-history" aria-hidden="true"></i><div><span>Stale 7+ days</span><strong>{{ smart_tracking.stale_work }}</strong><small>{{ smart_tracking.updated_last_7_days }} updated recently</small></div></div>
+        <div class="smart-kpi{% if smart_tracking.data_gaps %} is-danger{% endif %}"><i class="bi bi-exclamation-diamond" aria-hidden="true"></i><div><span>Data gaps</span><strong>{{ smart_tracking.data_gaps }}</strong><small>{{ smart_tracking.missing_identity }} IDs · {{ smart_tracking.missing_vendor }} vendors</small></div></div>
+      </div>
+
+      <div class="smart-insight-strip" aria-label="Automatic insights">
+        <i class="bi bi-lightbulb" aria-hidden="true"></i>
+        <div>{% for insight in smart_tracking.insights %}<span>{{ insight }}</span>{% endfor %}</div>
+      </div>
+
+      <div class="smart-lanes{% if not smart_tracking.block_pressure %} smart-lanes-two{% endif %}">
+        <section class="smart-lane" aria-labelledby="smartPriorityTitle">
+          <div class="smart-lane-heading"><div><span>Action queue</span><h3 id="smartPriorityTitle">Do next</h3></div><b>{{ smart_tracking.priority_total }}</b></div>
+          <div class="smart-list smart-priority-list">
+            {% for item in smart_tracking.priority_items %}
+              <a class="smart-action-row" href="{{ item.url }}">
+                <span class="smart-severity is-{{ item.severity }}">{{ item.severity_label }}</span>
+                <div class="smart-action-main"><strong>{{ item.title }}</strong><small>{{ item.subtitle }} · Block {{ item.block_display }}</small><span>{{ item.reason }}</span></div>
+                <div class="smart-action-progress"><b>{{ item.progress }}%</b><div class="progress"><div class="progress-bar" style="width: {{ item.progress }}%"></div></div></div>
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+              </a>
+            {% else %}
+              <div class="smart-list-empty"><i class="bi bi-check-circle" aria-hidden="true"></i> All created work is complete.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        {% if smart_tracking.block_pressure %}
+          <section class="smart-lane" aria-labelledby="smartBlockTitle">
+            <div class="smart-lane-heading"><div><span>Project pressure</span><h3 id="smartBlockTitle">Blocks needing focus</h3></div><b>{{ smart_tracking.block_pressure | length }}</b></div>
+            <div class="smart-list">
+              {% for item in smart_tracking.block_pressure %}
+                <a class="smart-pressure-row" href="{{ item.url }}">
+                  <div><strong>Block {{ item.block_display }}</strong><small>{{ item.pending_points }} pending points · {{ item.pending_structures }} structures · {{ item.pending_equipment }} equipment</small></div>
+                  <span class="smart-state is-{{ item.state }}">{{ item.state_label }}</span>
+                  <div class="smart-bar"><div style="width: {{ item.progress }}%"></div></div><b>{{ item.progress }}%</b>
+                </a>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+
+        <section class="smart-lane" aria-labelledby="smartBottleneckTitle">
+          <div class="smart-lane-heading"><div><span>Pending load</span><h3 id="smartBottleneckTitle">Checklist bottlenecks</h3></div><b>{{ smart_tracking.bottlenecks | length }}</b></div>
+          <div class="smart-list">
+            {% for item in smart_tracking.bottlenecks %}
+              {% if item.url %}<a class="smart-pressure-row" href="{{ item.url }}">{% else %}<div class="smart-pressure-row">{% endif %}
+                <div><strong>{{ item.name }}</strong><small>{{ item.pending_records }} pending records · {{ item.pending_points }} points</small></div>
+                <span class="smart-state is-active">{{ item.progress }}%</span>
+                <div class="smart-bar"><div style="width: {{ item.progress }}%"></div></div><b>{{ item.pending_points }}</b>
+              {% if item.url %}</a>{% else %}</div>{% endif %}
+            {% else %}
+              <div class="smart-list-empty"><i class="bi bi-check-circle" aria-hidden="true"></i> No checklist bottleneck.</div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+    {% endif %}
+  </div>
+</section>

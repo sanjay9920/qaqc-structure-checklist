@@ -1,12 +1,14 @@
 import copy
 import sys
 import unittest
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from openpyxl import load_workbook
 
 import checklist_app as app_module
+from checklist_app.dashboard_analytics import build_dashboard_intelligence
 from checklist_app.equipment_catalog import get_equipment_catalog, get_equipment_template
 from checklist_app.equipment_services import (
     build_equipment_family_summaries,
@@ -289,7 +291,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b'aria-label="Show password"', page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/static/service-worker.js")
-        self.assertIn(b"quality-sims-v16", service_worker.data)
+        self.assertIn(b"quality-sims-v17", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         service_worker.close()
 
@@ -633,6 +635,9 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"compact-tracking-grid compact-scroll-area",
             b"mini-progress-ring",
             b"checklist-dashboard-grid",
+            b"Smart QA/QC tracking",
+            b"Attention and next actions",
+            b"Open points",
         ]:
             self.assertIn(expected, page.data)
 
@@ -640,6 +645,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             "/admin/api/structures?project=100-MW-AKOLA-SITE&block=BLOCK-1"
         ).get_json()
         self.assertEqual(payload["equipment_summary"]["total_records"], 2)
+        self.assertEqual(payload["smart_tracking"]["open_records"], 2)
+        self.assertEqual(payload["smart_tracking"]["pending_points"], 29)
         self.assertEqual(payload["equipment_records"][0]["equipment_id"], record["equipment_id"])
         self.assertEqual(len(payload["equipment_template_summaries"]), 45)
         cable_summary = next(
@@ -676,6 +683,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Created checklist type status",
             b"block-portfolio-grid",
             b"mini-progress-ring",
+            b"Smart QA/QC tracking",
+            b"Blocks needing focus",
         ]:
             self.assertIn(expected, page.data)
         self.assertNotIn(b"Open block", page.data)
@@ -685,6 +694,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             "/admin/api/structures?project=100-MW-AKOLA-SITE"
         ).get_json()
         summary = payload["project_summary"]
+        self.assertEqual(payload["smart_tracking"]["pending_points"], 29)
+        self.assertTrue(payload["smart_tracking"]["block_pressure"])
         self.assertEqual(summary["equipment_total_records"], 2)
         self.assertEqual(summary["equipment_pending_records"], 2)
         self.assertEqual(summary["equipment_total_points"], 30)
@@ -762,6 +773,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Unique equipment",
             b"Search equipment, specification or vendor",
             b"summary-grid equipment-type-summary",
+            b"Smart QA/QC tracking",
+            b"Checklist bottlenecks",
         ]:
             self.assertIn(expected, page.data)
 
@@ -786,6 +799,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
             "?project=100-MW-AKOLA-SITE&block=BLOCK-1"
         ).get_json()
         self.assertEqual(payload["summary"]["total_records"], 2)
+        self.assertEqual(payload["smart_tracking"]["open_records"], 2)
         self.assertEqual(payload["summary"]["pending_records"], 2)
         self.assertEqual(payload["next_record_number"], "03")
         scb_two = next(
@@ -807,6 +821,46 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(
             get_next_equipment_record_number(payload["records"]), "03"
         )
+
+    def test_smart_tracking_prioritizes_stale_and_incomplete_work(self):
+        stale_time = datetime.now(timezone.utc) - timedelta(days=15)
+        records = [
+            {
+                "equipment_id": "SCB-01",
+                "equipment_identification": "",
+                "vendor_name": "",
+                "template_id": "string-cable",
+                "template_name": "DC Cable Laying",
+                "record_number": "01",
+                "block": "BLOCK-2",
+                "updated_at": stale_time,
+                "counts": {
+                    "total": 12,
+                    "completed": 2,
+                    "pending": 10,
+                    "na": 0,
+                    "progress": 17,
+                },
+            }
+        ]
+        templates = build_equipment_template_summaries(
+            [get_equipment_template("string-cable")], records
+        )
+        intelligence = build_dashboard_intelligence(
+            [],
+            records,
+            template_summaries=templates,
+            project="150-MW-AKOLA-SITE",
+            block="BLOCK-2",
+        )
+
+        self.assertTrue(intelligence["has_work"])
+        self.assertEqual(intelligence["pending_points"], 10)
+        self.assertEqual(intelligence["stale_work"], 1)
+        self.assertEqual(intelligence["data_gaps"], 2)
+        self.assertEqual(intelligence["priority_items"][0]["severity"], "critical")
+        self.assertIn("Equipment ID missing", intelligence["priority_items"][0]["reason"])
+        self.assertEqual(intelligence["bottlenecks"][0]["pending_points"], 10)
 
     def test_security_headers_safe_redirect_and_missing_structure_qr(self):
         database, _user, _record, _transformer = build_fixture()

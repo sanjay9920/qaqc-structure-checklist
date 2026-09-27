@@ -24,6 +24,7 @@ from flask import (
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .auth import admin_required, current_user, login_required
+from .dashboard_analytics import build_dashboard_intelligence
 from .config import settings
 from .exports import (
     export_all_xlsx,
@@ -604,6 +605,20 @@ def create_app():
         total = len(structures)
         completed = sum(1 for item in structures if item["counts"]["pending"] == 0)
         pending = total - completed
+        project_summary = build_project_summary(
+            project_structures,
+            block_id,
+            block_count=project_block_count,
+            equipment_records=equipment_records,
+        )
+        equipment_template_summaries = build_equipment_template_summaries(
+            get_equipment_catalog(), equipment_records
+        )
+        scope_structures = [
+            item
+            for item in project_structures
+            if not block_id or item.get("block") == block_id
+        ]
         payload = {
             "structures": structures,
             "equipment_records": equipment_records,
@@ -611,17 +626,18 @@ def create_app():
             "equipment_family_summaries": build_equipment_family_summaries(
                 equipment_records
             ),
-            "equipment_template_summaries": build_equipment_template_summaries(
-                get_equipment_catalog(), equipment_records
-            ),
+            "equipment_template_summaries": equipment_template_summaries,
             "total": total,
             "completed": completed,
             "pending": pending,
-            "project_summary": build_project_summary(
-                project_structures,
-                block_id,
-                block_count=project_block_count,
-                equipment_records=equipment_records,
+            "project_summary": project_summary,
+            "smart_tracking": build_dashboard_intelligence(
+                scope_structures,
+                equipment_records,
+                block_rows=project_summary["blocks"],
+                template_summaries=equipment_template_summaries,
+                project=project_id,
+                block=block_id,
             ),
             "project": project_id,
             "project_display_name": project_display_names.get(
@@ -911,6 +927,15 @@ def create_app():
             "records": records,
             "summary": build_equipment_summary(records),
             "family_summaries": build_equipment_family_summaries(records),
+            "smart_tracking": build_dashboard_intelligence(
+                [],
+                records,
+                template_summaries=build_equipment_template_summaries(
+                    [template], records
+                ),
+                project=project_id,
+                block=block_id,
+            ),
             "next_record_number": get_next_equipment_record_number(records),
         }
 
@@ -1282,6 +1307,7 @@ def create_app():
             completed=payload["completed"],
             pending=payload["pending"],
             project_summary=payload["project_summary"],
+            smart_tracking=payload["smart_tracking"],
             project=project_id,
             project_display_name=payload["project_display_name"],
             project_display_names=payload["project_display_names"],

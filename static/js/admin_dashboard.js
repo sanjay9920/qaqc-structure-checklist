@@ -518,6 +518,7 @@
     renderBlockSummary(payload.project || "", summary.blocks || []);
     renderDashboardScope(payload);
     renderEquipmentSummary(payload.equipment_summary || {});
+    if (window.smartTracking) window.smartTracking.render(payload.smart_tracking || {});
     renderEquipmentFamilies(payload.equipment_family_summaries || []);
     renderScopeChecklistWork(
       payload.equipment_template_summaries || [],

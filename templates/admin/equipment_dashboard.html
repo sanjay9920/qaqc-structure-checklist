@@ -66,6 +66,8 @@
   </div>
 </section>
 
+{% include "admin/_smart_tracking.html" %}
+
 <section class="admin-panel mb-3" aria-labelledby="createEquipmentTitle">
   <div class="section-title-row">
     <div>
@@ -181,5 +183,6 @@
     templateId: {{ template.template_id | tojson }}
   };
 </script>
-<script src="{{ url_for('static', filename='js/equipment_dashboard.js', v='11') }}"></script>
+<script src="{{ url_for('static', filename='js/smart_tracking.js', v='1') }}"></script>
+<script src="{{ url_for('static', filename='js/equipment_dashboard.js', v='12') }}"></script>
 {% endblock %}

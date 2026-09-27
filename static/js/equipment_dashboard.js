@@ -102,6 +102,7 @@
   function render(payload) {
     const records = Array.isArray(payload.records) ? payload.records : [];
     renderSummary(payload.summary || {});
+    if (window.smartTracking) window.smartTracking.render(payload.smart_tracking || {});
     recordsBody.innerHTML = records.length
       ? records.map(renderRecord).join("")
       : '<tr><td colspan="9" class="text-center text-muted py-4">No equipment created. Add the first record above.</td></tr>';
