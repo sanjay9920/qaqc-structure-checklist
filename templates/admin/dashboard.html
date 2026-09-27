@@ -388,6 +388,7 @@
     </section>
   {% endif %}
 
+  {% if equipment_summary.total_records %}
   <section class="admin-panel scope-work-register mb-3" aria-labelledby="scopeWorkRegisterTitle">
     <div class="equipment-table-heading">
       <div>
@@ -463,6 +464,7 @@
       {% endfor %}
     </div>
   </section>
+  {% endif %}
 
   {% if bulk_start and bulk_end %}
     <div class="alert alert-success d-flex align-items-center justify-content-between gap-3 flex-wrap">
