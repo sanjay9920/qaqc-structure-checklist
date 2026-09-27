@@ -646,6 +646,18 @@ def build_equipment_template_summaries(templates, records):
                 if str(record.get("equipment_identification") or "").strip()
             )
         )
+        equipment_units = []
+        seen_equipment_units = set()
+        for record in template_records:
+            label = str(record.get("equipment_identification") or "").strip()
+            block = str(record.get("block") or "").strip()
+            if not label:
+                continue
+            unit_key = (block, label.upper())
+            if unit_key in seen_equipment_units:
+                continue
+            seen_equipment_units.add(unit_key)
+            equipment_units.append({"label": label, "block": block})
         vendor_names = list(
             dict.fromkeys(
                 str(record.get("vendor_name") or "").strip()
@@ -691,6 +703,8 @@ def build_equipment_template_summaries(templates, records):
                 **summary,
                 "equipment_labels": equipment_labels[:3],
                 "additional_equipment_count": max(0, len(equipment_labels) - 3),
+                "equipment_units": equipment_units[:8],
+                "additional_equipment_unit_count": max(0, len(equipment_units) - 8),
                 "vendor_names": vendor_names[:2],
                 "additional_vendor_count": max(0, len(vendor_names) - 2),
                 "specifications": specifications[:2],

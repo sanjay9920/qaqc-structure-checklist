@@ -415,7 +415,7 @@
     </div>
     <div id="equipmentFamilyBody" class="compact-tracking-grid compact-scroll-area">
       {% for family in equipment_family_summaries %}
-        <article class="compact-tracking-card" data-family-search="{{ (family.family ~ ' ' ~ (family.checklist_types | join(' '))) | lower }}" data-pending="{{ family.pending_equipment }}" data-in-progress="{{ family.in_progress_equipment }}" data-completed="{{ family.completed_equipment }}">
+        <article class="compact-tracking-card" data-family-search="{{ (family.family ~ ' ' ~ (family.checklist_types | join(' ')) ~ ' ' ~ (family.equipment | map(attribute='label') | join(' ')) ~ ' ' ~ (family.blocks | join(' '))) | lower }}" data-pending="{{ family.pending_equipment }}" data-in-progress="{{ family.in_progress_equipment }}" data-completed="{{ family.completed_equipment }}">
           <div class="compact-tracking-head">
             <div class="compact-tracking-title"><strong>{{ family.family }}</strong><small>{{ family.equipment_count }} equipment · {{ family.total_records }} records</small></div>
             <div class="mini-progress-ring" style="--progress: {{ family.progress }}" role="img" aria-label="{{ family.progress }} percent complete"><span>{{ family.progress }}%</span></div>
@@ -427,7 +427,7 @@
           </div>
           <div class="compact-meta-row"><span>{{ family.completed_points }}/{{ family.total_points }} points</span><span>{{ family.block_count }} block{% if family.block_count != 1 %}s{% endif %}</span><span>{{ family.checklist_type_count }} type{% if family.checklist_type_count != 1 %}s{% endif %}</span></div>
           <div class="compact-id-line">
-            {% for equipment in family.equipment %}<span class="equipment-state-{{ equipment.state }}">{% if family.block_count > 1 %}B{{ equipment.block | block_label }} / {% endif %}{{ equipment.label }}</span>{% endfor %}
+            {% for equipment in family.equipment %}<span class="equipment-state-{{ equipment.state }}">{% if not block or family.block_count > 1 %}B{{ equipment.block | block_label }} / {% endif %}{{ equipment.label }}</span>{% endfor %}
             {% if family.additional_equipment_count %}<span>+{{ family.additional_equipment_count }}</span>{% endif %}
           </div>
           <div class="progress compact-progress-bar"><div class="progress-bar" style="width: {{ family.progress }}%"></div></div>
@@ -456,7 +456,7 @@
           </div>
           <div class="compact-status-row"><span class="status-complete"><b>{{ item.completed_records }}</b> done</span><span class="status-progress"><b>{{ item.in_progress_records }}</b> active</span><span class="status-pending"><b>{{ item.not_started_records }}</b> waiting</span></div>
           <div class="compact-meta-row"><span>{{ item.completed_points }}/{{ item.total_points }} points</span><span>{{ item.pending_points }} pending</span><span>{{ item.block_count }} block{% if item.block_count != 1 %}s{% endif %}</span></div>
-          <div class="compact-id-line">{% for label in item.equipment_labels %}<span>{{ label }}</span>{% endfor %}{% if item.additional_equipment_count %}<span>+{{ item.additional_equipment_count }}</span>{% endif %}</div>
+          <div class="compact-id-line">{% for unit in item.equipment_units %}<span>{% if not block %}B{{ unit.block | block_label }} / {% endif %}{{ unit.label }}</span>{% endfor %}{% if item.additional_equipment_unit_count %}<span>+{{ item.additional_equipment_unit_count }}</span>{% endif %}</div>
           <div class="compact-card-footer">
             <div class="progress compact-progress-bar"><div class="progress-bar" style="width: {{ item.progress }}%"></div></div>
             {% if block %}<a class="btn btn-sm btn-outline-primary compact-open-button" href="{{ url_for('admin_equipment_dashboard', template_id=item.template_id, project=project, block=block) }}" title="Open {{ item.name }} dashboard" aria-label="Open {{ item.name }} dashboard"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i></a>{% endif %}

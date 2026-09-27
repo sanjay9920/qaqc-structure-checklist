@@ -355,6 +355,37 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(idt["not_started_equipment"], 1)
         self.assertEqual(idt["block_count"], 1)
 
+    def test_checklist_summary_keeps_same_equipment_id_separate_by_block(self):
+        template = get_equipment_template("string-cable")
+        records = [
+            {
+                "equipment_id": "block-1-scb-1",
+                "equipment_identification": "SCB-1",
+                "template_id": template["template_id"],
+                "block": "BLOCK-1",
+                "counts": {"total": 12, "completed": 12, "pending": 0, "na": 0, "progress": 100},
+            },
+            {
+                "equipment_id": "block-2-scb-1",
+                "equipment_identification": "SCB-1",
+                "template_id": template["template_id"],
+                "block": "BLOCK-2",
+                "counts": {"total": 12, "completed": 0, "pending": 12, "na": 0, "progress": 0},
+            },
+        ]
+
+        summary = build_equipment_template_summaries([template], records)[0]
+
+        self.assertEqual(summary["equipment_labels"], ["SCB-1"])
+        self.assertEqual(
+            summary["equipment_units"],
+            [
+                {"label": "SCB-1", "block": "BLOCK-1"},
+                {"label": "SCB-1", "block": "BLOCK-2"},
+            ],
+        )
+        self.assertEqual(summary["additional_equipment_unit_count"], 0)
+
     def test_password_fields_have_show_hide_controls(self):
         database = FakeFirestore()
         client = build_test_app(database).test_client()
@@ -868,6 +899,10 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(cable_summary["identified_records"], 1)
         self.assertEqual(cable_summary["missing_identity_records"], 0)
         self.assertEqual(cable_summary["equipment_labels"], ["SCB-1"])
+        self.assertEqual(
+            cable_summary["equipment_units"],
+            [{"label": "SCB-1", "block": "BLOCK-1"}],
+        )
         self.assertEqual(cable_summary["vendor_names"], ["Polycab"])
         self.assertEqual(cable_summary["specifications"], ["240 SQMM"])
         self.assertNotIn(b"Created equipment checklists", page.data)
@@ -875,6 +910,13 @@ class EquipmentWorkflowTests(unittest.TestCase):
 
     def test_project_dashboard_combines_every_blocks_structure_and_equipment_work(self):
         database, _user, _record, _transformer = build_fixture()
+        database.collection("projects").document("100-MW-AKOLA-SITE").set(
+            {
+                "project_id": "100-MW-AKOLA-SITE",
+                "display_name": "100 MW AKOLA SITE",
+                "block_count": 20,
+            }
+        )
         client = build_test_app(database, logged_in=True).test_client()
         url = "/admin?project=100-MW-AKOLA-SITE"
 
@@ -885,6 +927,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"All checklist and work status",
             b"Every block: checklist and work details",
             b"Block 1",
+            b"Block 20",
             b"Equipment checklists",
             b"Combined QA/QC work",
             b"Open Block Dashboard",
@@ -898,6 +941,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
             self.assertIn(expected, page.data)
         self.assertNotIn(b"Open block", page.data)
         self.assertNotIn(b"Block detail", page.data)
+        self.assertIn(b"B1 / SCB-1", page.data)
 
         payload = client.get(
             "/admin/api/structures?project=100-MW-AKOLA-SITE"
@@ -911,6 +955,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(summary["equipment_completed_points"], 1)
         self.assertEqual(summary["work_total_points"], 30)
         self.assertEqual(summary["work_completed_points"], 1)
+        self.assertEqual(len(summary["blocks"]), 20)
+        self.assertEqual(summary["blocks"][-1]["block"], "BLOCK-20")
         block = next(item for item in summary["blocks"] if item["block"] == "BLOCK-1")
         self.assertEqual(block["equipment_total_records"], 2)
         self.assertEqual(block["equipment_pending_records"], 2)

@@ -217,16 +217,20 @@
     if (equipmentTotalPointsEl) equipmentTotalPointsEl.textContent = summary.total_points || 0;
   }
 
-  function renderEquipmentFamilies(items) {
+  function renderEquipmentFamilies(items, currentBlock) {
     if (!equipmentFamilyBody) return;
     const rows = Array.isArray(items) ? items : [];
     if (equipmentFamilyCount) equipmentFamilyCount.textContent = rows.length;
     equipmentFamilyBody.innerHTML = rows.length ? rows.map(function (family) {
       const equipment = Array.isArray(family.equipment) ? family.equipment : [];
       const checklistTypes = Array.isArray(family.checklist_types) ? family.checklist_types : [];
-      const searchText = [family.family, ...checklistTypes, ...equipment.map((item) => item.label)].join(" ").toLowerCase();
+      const searchText = [
+        family.family,
+        ...checklistTypes,
+        ...equipment.map((item) => `${item.block || ""} B${blockLabel(item.block)} ${item.label || ""}`),
+      ].join(" ").toLowerCase();
       const ids = equipment.map((item) => {
-        const label = family.block_count > 1 && item.block
+        const label = (!currentBlock || family.block_count > 1) && item.block
           ? `B${blockLabel(item.block)} / ${item.label}`
           : item.label;
         return `<span class="equipment-state-${escapeHtml(item.state)}" title="${item.completed_points || 0} completed, ${item.pending_points || 0} pending">${escapeHtml(label)}</span>`;
@@ -268,9 +272,16 @@
     const rows = (Array.isArray(items) ? items : []).filter((item) => Number(item.total_records || 0) > 0);
     if (activeChecklistTypeCount) activeChecklistTypeCount.textContent = rows.length;
     scopeChecklistWorkBody.innerHTML = rows.length ? rows.map(function (item) {
+      const units = Array.isArray(item.equipment_units) ? item.equipment_units : [];
       const labels = Array.isArray(item.equipment_labels) ? item.equipment_labels : [];
-      const ids = labels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
-      const more = item.additional_equipment_count ? `<span>+${item.additional_equipment_count}</span>` : "";
+      const ids = units.length
+        ? units.map((unit) => {
+          const label = !block && unit.block ? `B${blockLabel(unit.block)} / ${unit.label}` : unit.label;
+          return `<span>${escapeHtml(label)}</span>`;
+        }).join("")
+        : labels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
+      const additionalCount = units.length ? item.additional_equipment_unit_count : item.additional_equipment_count;
+      const more = additionalCount ? `<span>+${additionalCount}</span>` : "";
       const action = block
         ? `<a class="btn btn-sm btn-outline-primary compact-open-button" href="/admin/equipment-dashboard/${encodeURIComponent(item.template_id || "")}?project=${encodeURIComponent(project || "")}&block=${encodeURIComponent(block)}" title="Open ${escapeHtml(item.name || "Checklist")} dashboard" aria-label="Open ${escapeHtml(item.name || "Checklist")} dashboard"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i></a>`
         : "";
@@ -519,7 +530,7 @@
     renderDashboardScope(payload);
     renderEquipmentSummary(payload.equipment_summary || {});
     if (window.smartTracking) window.smartTracking.render(payload.smart_tracking || {});
-    renderEquipmentFamilies(payload.equipment_family_summaries || []);
+    renderEquipmentFamilies(payload.equipment_family_summaries || [], payload.block || "");
     renderScopeChecklistWork(
       payload.equipment_template_summaries || [],
       payload.project || "",
