@@ -496,7 +496,7 @@
       event.preventDefault();
       const structureId = form.dataset.structureId;
       const confirmed = confirm(
-        `Delete ${structureId} checklist data and history? Same ID can be created again.`
+        `Permanently delete ${structureId} checklist data and history? This cannot be undone. The same ID can be created again.`
       );
       if (!confirmed) return;
 

@@ -58,7 +58,7 @@
             <a class="btn btn-sm btn-outline-dark" href="${equipmentUrl(equipmentId)}"><i class="bi bi-eye" aria-hidden="true"></i> Open</a>
             <a class="btn btn-sm btn-outline-dark" href="${equipmentUrl(equipmentId)}/qr.png?download=1" download="${escapeHtml(equipmentId)}.png"><i class="bi bi-download" aria-hidden="true"></i> QR</a>
             <form action="/admin/equipment/${encodeURIComponent(equipmentId)}/delete" method="post" class="delete-equipment-form d-inline" data-equipment-id="${escapeHtml(equipmentId)}">
-              <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
+              <button class="btn btn-sm btn-danger" type="submit"><i class="bi bi-trash3" aria-hidden="true"></i> Delete permanently</button>
             </form>
           </div>
         </td>
@@ -106,7 +106,7 @@
     if (!form) return;
     event.preventDefault();
     const equipmentId = form.dataset.equipmentId;
-    if (!confirm(`Delete ${equipmentId} checklist data and history?`)) return;
+    if (!confirm(`Permanently delete ${equipmentId} checklist, all saved points, remarks and history? This cannot be undone.`)) return;
 
     const button = form.querySelector("button");
     if (button) button.disabled = true;

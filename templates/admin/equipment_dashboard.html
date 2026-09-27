@@ -130,7 +130,7 @@
                 <a class="btn btn-sm btn-outline-dark" href="{{ url_for('equipment_page', equipment_id=record.equipment_id) }}"><i class="bi bi-eye" aria-hidden="true"></i> Open</a>
                 <a class="btn btn-sm btn-outline-dark" href="{{ url_for('equipment_qr', equipment_id=record.equipment_id, download=1) }}" download="{{ record.equipment_id }}.png"><i class="bi bi-download" aria-hidden="true"></i> QR</a>
                 <form action="{{ url_for('admin_delete_equipment', equipment_id=record.equipment_id) }}" method="post" class="delete-equipment-form d-inline" data-equipment-id="{{ record.equipment_id }}">
-                  <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
+                  <button class="btn btn-sm btn-danger" type="submit"><i class="bi bi-trash3" aria-hidden="true"></i> Delete permanently</button>
                 </form>
               </div>
             </td>
@@ -151,5 +151,5 @@
     templateId: {{ template.template_id | tojson }}
   };
 </script>
-<script src="{{ url_for('static', filename='js/equipment_dashboard.js', v='9') }}"></script>
+<script src="{{ url_for('static', filename='js/equipment_dashboard.js', v='10') }}"></script>
 {% endblock %}
