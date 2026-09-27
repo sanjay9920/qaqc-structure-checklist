@@ -10,6 +10,12 @@
   --red: #b42318;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 * {
   letter-spacing: 0;
 }
@@ -1262,10 +1268,24 @@ body {
 }
 
 .smart-tracking {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 0.85rem 0 1rem;
   padding: 0.85rem 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
+}
+
+.smart-tracking > *,
+#smartTrackingContent,
+.smart-kpi-grid,
+.smart-lanes,
+.smart-lane,
+.smart-tracking-header > div,
+.smart-insight-strip > div {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .smart-tracking-header {
@@ -1403,6 +1423,7 @@ body {
 
 .smart-insight-strip span {
   display: inline;
+  overflow-wrap: anywhere;
 }
 
 .smart-insight-strip span + span::before {
