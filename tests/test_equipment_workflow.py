@@ -454,6 +454,9 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(cable_summary["missing_identity_records"], 0)
         self.assertEqual(cable_summary["equipment_labels"], ["SCB-1"])
         self.assertEqual(cable_summary["vendor_names"], ["Polycab"])
+        self.assertEqual(cable_summary["specifications"], ["240 SQMM"])
+        self.assertNotIn(b"Created equipment checklists", page.data)
+        self.assertNotIn(b"Equipment History CSV", page.data)
 
     def test_checklist_dashboard_supports_multiple_equipment_records(self):
         database, _user, record, _transformer = build_fixture()

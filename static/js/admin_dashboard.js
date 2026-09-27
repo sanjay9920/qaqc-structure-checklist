@@ -1,7 +1,6 @@
 (function () {
   const config = window.adminDashboard || {};
   const tableBody = document.getElementById("structuresTableBody");
-  const equipmentTableBody = document.getElementById("equipmentTableBody");
   const equipmentDashboardTableBody = document.getElementById("equipmentDashboardTableBody");
   const checklistDashboardSearch = document.getElementById("checklistDashboardSearch");
   const checklistDashboardStatus = document.getElementById("checklistDashboardStatus");
@@ -33,7 +32,6 @@
   const projectRenameSaveButton = document.getElementById("saveProjectName");
   const blockOpenSelect = document.getElementById("block_open_select");
   const structureOpenSelect = document.getElementById("structure_open_select");
-  const equipmentRecordInput = document.getElementById("equipment_record_number");
   const equipmentTemplateSelect = document.getElementById("equipment_template_id");
   const equipmentDashboardOpenForm = document.getElementById("equipmentDashboardOpenForm");
   const equipmentTotalRecordsEl = document.getElementById("equipmentTotalRecords");
@@ -106,10 +104,6 @@
 
   function structureUrl(structureId) {
     return `/admin/structures/${encodeURIComponent(structureId)}`;
-  }
-
-  function equipmentUrl(equipmentId) {
-    return `/equipment/${encodeURIComponent(equipmentId)}`;
   }
 
   function dashboardUrl(project, block) {
@@ -322,56 +316,6 @@
     `;
   }
 
-  function renderEquipmentRow(record) {
-    const counts = record.counts || {};
-    const equipmentId = record.equipment_id || "";
-    const progress = counts.progress || 0;
-    const identityParts = [record.equipment_identification, record.specification]
-      .filter(Boolean)
-      .map(escapeHtml)
-      .join(" · ");
-    const detailLine = identityParts
-      ? `<small class="d-block equipment-row-detail">${identityParts}</small>`
-      : "";
-    const vendorLine = record.vendor_name
-      ? `<small class="d-block text-muted">Vendor: ${escapeHtml(record.vendor_name)}</small>`
-      : "";
-    return `
-      <tr>
-        <td>
-          <strong>${escapeHtml(record.template_name || "Equipment checklist")}</strong>
-          <small class="d-block text-muted">${escapeHtml(record.format_no || "")}</small>
-          ${detailLine}
-          ${vendorLine}
-        </td>
-        <td>${escapeHtml(record.record_number || "")}</td>
-        <td>${counts.completed || 0} / ${counts.total || 0}</td>
-        <td>${counts.pending || 0} / ${counts.total || 0}</td>
-        <td>
-          <div class="progress table-progress"><div class="progress-bar" style="width: ${progress}%"></div></div>
-          <span class="small text-muted">${progress}%</span>
-        </td>
-        <td class="text-end">
-          <div class="table-actions">
-            <a class="btn btn-sm btn-outline-dark" href="${equipmentUrl(equipmentId)}"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
-            <a class="btn btn-sm btn-outline-dark" href="${equipmentUrl(equipmentId)}/qr.png?download=1" download="${escapeHtml(equipmentId)}.png"><i class="bi bi-download" aria-hidden="true"></i> QR</a>
-            <form action="/admin/equipment/${encodeURIComponent(equipmentId)}/delete" method="post" class="delete-equipment-form d-inline" data-equipment-id="${escapeHtml(equipmentId)}">
-              <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
-            </form>
-          </div>
-        </td>
-      </tr>
-    `;
-  }
-
-  function renderEquipmentRecords(records) {
-    if (!equipmentTableBody) return;
-    const rows = Array.isArray(records) ? records : [];
-    equipmentTableBody.innerHTML = rows.length
-      ? rows.map(renderEquipmentRow).join("")
-      : `<tr><td colspan="6" class="text-center text-muted py-4">No equipment checklist created in this block.</td></tr>`;
-  }
-
   function renderEquipmentTemplateSummaries(items, project, block) {
     if (!equipmentDashboardTableBody) return;
     const rows = Array.isArray(items) ? items : [];
@@ -380,13 +324,17 @@
       const dashboardUrl = `/admin/equipment-dashboard/${encodeURIComponent(item.template_id || "")}?project=${encodeURIComponent(project || "")}&block=${encodeURIComponent(block || "")}`;
       const equipmentLabels = Array.isArray(item.equipment_labels) ? item.equipment_labels : [];
       const vendorNames = Array.isArray(item.vendor_names) ? item.vendor_names : [];
+      const specifications = Array.isArray(item.specifications) ? item.specifications : [];
       const equipmentText = equipmentLabels.length
         ? `${equipmentLabels.map(escapeHtml).join(", ")}${item.additional_equipment_count ? ` +${item.additional_equipment_count}` : ""}`
         : "No equipment ID";
       const vendorText = vendorNames.length
         ? `${vendorNames.map(escapeHtml).join(", ")}${item.additional_vendor_count ? ` +${item.additional_vendor_count}` : ""}`
         : "No vendor";
-      const searchText = [item.name, item.format_no, ...equipmentLabels, ...vendorNames]
+      const specificationText = specifications.length
+        ? `${specifications.map(escapeHtml).join(", ")}${item.additional_specification_count ? ` +${item.additional_specification_count}` : ""}`
+        : "";
+      const searchText = [item.name, item.format_no, ...equipmentLabels, ...specifications, ...vendorNames]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -430,6 +378,7 @@
           <div class="checklist-identity-line">
             <span title="Equipment / Circuit IDs"><i class="bi bi-tag" aria-hidden="true"></i> ${equipmentText}</span>
             <span title="Vendors / Manufacturers"><i class="bi bi-building" aria-hidden="true"></i> ${vendorText}</span>
+            ${specificationText ? `<span title="Specifications"><i class="bi bi-rulers" aria-hidden="true"></i> ${specificationText}</span>` : ""}
           </div>
         </article>
       `;
@@ -477,7 +426,6 @@
     renderBlockSummary(payload.project || "", summary.blocks || []);
     renderDashboardScope(payload);
     renderEquipmentSummary(payload.equipment_summary || {});
-    renderEquipmentRecords(payload.equipment_records || []);
     renderEquipmentTemplateSummaries(
       payload.equipment_template_summaries || [],
       payload.project || "",
@@ -563,35 +511,6 @@
         if (createBlockInput) createBlockInput.value = blockLabel(deleted.block);
         if (createIdInput) createIdInput.value = structureNumber(deleted.structure_id || structureId);
 
-        await refreshDashboard();
-      } catch (error) {
-        alert(error.message || "Delete failed.");
-        if (button) button.disabled = false;
-      }
-    });
-  }
-
-  if (equipmentTableBody) {
-    equipmentTableBody.addEventListener("submit", async function (event) {
-      const form = event.target.closest(".delete-equipment-form");
-      if (!form) return;
-
-      event.preventDefault();
-      const equipmentId = form.dataset.equipmentId;
-      if (!confirm(`Delete ${equipmentId} checklist data and history?`)) return;
-
-      const button = form.querySelector("button");
-      if (button) button.disabled = true;
-      try {
-        const response = await fetch(form.action, {
-          method: "POST",
-          headers: { "Accept": "application/json", "X-Requested-With": "fetch" }
-        });
-        const payload = await readJson(response);
-        if (!response.ok) throw new Error((payload && payload.error) || "Delete failed.");
-        if (equipmentRecordInput && payload.deleted) {
-          equipmentRecordInput.value = payload.deleted.record_number || "01";
-        }
         await refreshDashboard();
       } catch (error) {
         alert(error.message || "Delete failed.");

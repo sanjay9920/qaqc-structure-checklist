@@ -438,6 +438,13 @@ def build_equipment_template_summaries(templates, records):
                 if str(record.get("vendor_name") or "").strip()
             )
         )
+        specifications = list(
+            dict.fromkeys(
+                str(record.get("specification") or "").strip()
+                for record in template_records
+                if str(record.get("specification") or "").strip()
+            )
+        )
         summaries.append(
             {
                 **template,
@@ -458,6 +465,8 @@ def build_equipment_template_summaries(templates, records):
                 "additional_equipment_count": max(0, len(equipment_labels) - 3),
                 "vendor_names": vendor_names[:2],
                 "additional_vendor_count": max(0, len(vendor_names) - 2),
+                "specifications": specifications[:2],
+                "additional_specification_count": max(0, len(specifications) - 2),
                 "next_record_number": get_next_equipment_record_number(
                     template_records
                 ),
