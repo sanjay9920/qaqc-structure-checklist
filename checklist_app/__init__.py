@@ -1127,24 +1127,29 @@ def create_app():
     def admin_update_user_access(uid):
         action = request.form.get("action", "")
         if uid == g.user.get("uid"):
-            flash("You cannot remove access from your own active login.", "danger")
+            flash("You cannot remove your own active login.", "danger")
             return redirect(url_for("admin_users"))
 
         try:
             initialize_firebase()
             user = firebase_auth.get_user(uid)
-            if action == "disable":
+            if action == "delete":
+                email = user.email or uid
+                firebase_auth.delete_user(uid)
+                flash(f"User {email} permanently deleted.", "success")
+            elif action == "disable":
+                # Keep this branch for older browser pages or bookmarked forms.
                 firebase_auth.update_user(uid, disabled=True)
                 firebase_auth.revoke_refresh_tokens(uid)
-                flash(f"Access removed for {user.email}.", "success")
+                flash(f"Access disabled for {user.email or uid}.", "success")
             elif action == "enable":
                 firebase_auth.update_user(uid, disabled=False)
-                flash(f"Access enabled for {user.email}.", "success")
+                flash(f"Access enabled for {user.email or uid}.", "success")
             else:
                 flash("Invalid access action.", "danger")
         except Exception:
-            app.logger.exception("Could not update user access for %s", uid)
-            flash("Could not update user access. Please try again.", "danger")
+            app.logger.exception("Could not update or delete user %s", uid)
+            flash("Could not update this user account. Please try again.", "danger")
         return redirect(url_for("admin_users"))
 
     @app.post("/admin/users/<uid>/role")

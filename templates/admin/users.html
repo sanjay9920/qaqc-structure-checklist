@@ -7,7 +7,7 @@
   <div>
     <p class="eyebrow mb-1">Quality Department App</p>
     <h1 class="h3 mb-0">User access dashboard</h1>
-    <p class="dashboard-tagline mb-0">Create users, reset passwords and remove access from one place.</p>
+    <p class="dashboard-tagline mb-0">Create users, reset passwords and permanently remove accounts from one place.</p>
   </div>
 </div>
 
@@ -172,21 +172,31 @@
               </form>
               <form action="{{ url_for('admin_update_user_access', uid=user.uid) }}" method="post">
                 {% if user.disabled %}
-                  <input type="hidden" name="action" value="enable">
-                  <button class="btn btn-sm btn-success" type="submit">
+                  <button class="btn btn-sm btn-success" type="submit" name="action" value="enable">
                     <i class="bi bi-unlock" aria-hidden="true"></i>
                     Enable
                   </button>
-                {% else %}
-                  <input type="hidden" name="action" value="disable">
                   <button
-                    class="btn btn-sm btn-outline-danger"
+                    class="btn btn-sm btn-danger mt-1"
+                    type="submit"
+                    formaction="{{ url_for('admin_update_user_access', uid=user.uid) }}"
+                    name="action"
+                    value="delete"
+                    onclick="return confirm('Permanently delete {{ user.email or user.uid }}? This cannot be undone.')"
+                  >
+                    <i class="bi bi-trash3" aria-hidden="true"></i>
+                    Delete permanently
+                  </button>
+                {% else %}
+                  <input type="hidden" name="action" value="delete">
+                  <button
+                    class="btn btn-sm btn-danger"
                     type="submit"
                     {% if user.uid == current_user.uid %}disabled{% endif %}
-                    onclick="return confirm('Remove access for {{ user.email or user.uid }}?')"
+                    onclick="return confirm('Permanently delete {{ user.email or user.uid }}? This cannot be undone.')"
                   >
-                    <i class="bi bi-person-x" aria-hidden="true"></i>
-                    Remove access
+                    <i class="bi bi-trash3" aria-hidden="true"></i>
+                    Delete permanently
                   </button>
                 {% endif %}
               </form>
