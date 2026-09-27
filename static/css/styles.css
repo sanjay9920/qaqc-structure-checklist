@@ -1337,6 +1337,51 @@ body {
   margin-bottom: 0.7rem;
 }
 
+.smart-header-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.smart-guide-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+}
+
+.smart-guide-list {
+  display: grid;
+  gap: 0;
+}
+
+.smart-guide-list > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.7fr);
+  gap: 0.8rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.smart-guide-list > div:last-child {
+  border-bottom: 0;
+}
+
+.smart-guide-list dt,
+.smart-guide-list dd {
+  margin: 0;
+}
+
+.smart-guide-list dt {
+  font-weight: 800;
+}
+
+.smart-guide-list dd {
+  color: var(--muted);
+}
+
 .smart-live-badge {
   display: inline-flex;
   min-height: 28px;
@@ -1699,6 +1744,11 @@ body {
 @media (max-width: 700px) {
   .smart-tracking-header {
     gap: 0.5rem;
+  }
+
+  .smart-guide-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
   }
 
   .smart-kpi-grid {

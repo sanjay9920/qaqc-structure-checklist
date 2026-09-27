@@ -5,7 +5,19 @@
       <h2 id="smartTrackingTitle" class="h5 mb-1">Attention and next actions</h2>
       <p class="dashboard-scope mb-0">Live priorities from pending points, update age and missing record details.</p>
     </div>
-    <span class="smart-live-badge"><i class="bi bi-broadcast" aria-hidden="true"></i> Live</span>
+    <div class="smart-header-actions">
+      <button
+        class="btn btn-sm btn-outline-secondary smart-guide-button"
+        type="button"
+        data-bs-toggle="modal"
+        data-bs-target="#smartTrackingGuide"
+        aria-label="Open Smart QA/QC tracking guide"
+        title="What does Smart QA/QC tracking mean?"
+      >
+        <i class="bi bi-question-circle" aria-hidden="true"></i>
+      </button>
+      <span class="smart-live-badge"><i class="bi bi-broadcast" aria-hidden="true"></i> Live</span>
+    </div>
   </div>
 
   <div id="smartTrackingContent">
@@ -77,3 +89,32 @@
     {% endif %}
   </div>
 </section>
+
+<div class="modal fade" id="smartTrackingGuide" tabindex="-1" aria-labelledby="smartTrackingGuideTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow mb-1">Dashboard guide</p>
+          <h2 class="modal-title fs-5" id="smartTrackingGuideTitle">Smart QA/QC tracking</h2>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close guide"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">Checklist data changes ke saath priorities automatically update hoti hain.</p>
+        <dl class="smart-guide-list mb-0">
+          <div><dt>Open points</dt><dd>Abhi incomplete QA/QC checklist points.</dd></div>
+          <div><dt>Active work</dt><dd>Kaam start hua hai, lekin checklist fully complete nahi hai.</dd></div>
+          <div><dt>Stale 7+ days</dt><dd>Checklist jisme 7 din ya usse zyada se update nahi hua.</dd></div>
+          <div><dt>Data gaps</dt><dd>Equipment/circuit ID ya vendor name missing hai.</dd></div>
+          <div><dt>Do next</dt><dd>Sabse pehle action lene wala high-priority record.</dd></div>
+          <div><dt>Blocks needing focus</dt><dd>Jis block me pending work ka pressure zyada hai.</dd></div>
+          <div><dt>Checklist bottlenecks</dt><dd>Checklist types jahan sabse zyada points pending hain.</dd></div>
+        </dl>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it</button>
+      </div>
+    </div>
+  </div>
+</div>

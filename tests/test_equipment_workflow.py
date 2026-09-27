@@ -400,7 +400,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b"/static/js/login.js?v=2", page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/service-worker.js")
-        self.assertIn(b"quality-sims-v22", service_worker.data)
+        self.assertIn(b"quality-sims-v23", service_worker.data)
+        self.assertIn(b"/static/css/styles.css?v=21", service_worker.data)
         self.assertIn(b"/static/js/login.js?v=2", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         self.assertEqual(service_worker.headers.get("Cache-Control"), "no-cache")
@@ -909,6 +910,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"checklist-library-panel",
             b"Smart QA/QC tracking",
             b"Attention and next actions",
+            b'aria-label="Open Smart QA/QC tracking guide"',
+            b"Checklist bottlenecks",
             b"Open points",
             b"Create Structure Checklist",
             b'class="structure-tools"',
