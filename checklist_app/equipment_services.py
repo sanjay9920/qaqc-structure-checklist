@@ -377,7 +377,11 @@ def build_equipment_summary(records):
         (record.get("counts") or {}).get("pending", 0) for record in records
     )
     na_points = sum((record.get("counts") or {}).get("na", 0) for record in records)
-    progress = round(completed_points * 100 / total_points) if total_points else 0
+    progress = (
+        round((completed_points + na_points) * 100 / total_points)
+        if total_points
+        else 0
+    )
     in_progress_records = sum(
         1
         for record in records

@@ -162,7 +162,12 @@ def build_dashboard_intelligence(
         _counts(item)["completed"] for item, _kind in all_records
     )
     pending_points = sum(_counts(item)["pending"] for item, _kind in all_records)
-    progress = round(completed_points * 100 / total_points) if total_points else 0
+    na_points = sum(_counts(item)["na"] for item, _kind in all_records)
+    progress = (
+        round((completed_points + na_points) * 100 / total_points)
+        if total_points
+        else 0
+    )
 
     priority_items = []
     active_work = 0

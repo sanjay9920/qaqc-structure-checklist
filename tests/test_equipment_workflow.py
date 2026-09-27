@@ -26,6 +26,8 @@ from checklist_app.equipment_services import (
 )
 from checklist_app.exports import export_all_xlsx, export_equipment_csv
 from checklist_app.services import (
+    build_project_summary,
+    calculate_counts,
     delete_checklist_item,
     delete_project,
     get_active_checklist_items,
@@ -925,6 +927,39 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(intelligence["priority_items"][0]["severity"], "critical")
         self.assertIn("Equipment ID missing", intelligence["priority_items"][0]["reason"])
         self.assertEqual(intelligence["bottlenecks"][0]["pending_points"], 10)
+
+    def test_na_points_are_resolved_for_completion_progress(self):
+        rows = (
+            [{"status": "completed"} for _ in range(7)]
+            + [{"status": "na"} for _ in range(5)]
+        )
+        counts = calculate_counts(rows)
+        self.assertEqual(counts["completed"], 7)
+        self.assertEqual(counts["na"], 5)
+        self.assertEqual(counts["pending"], 0)
+        self.assertEqual(counts["progress"], 100)
+
+        summary = build_project_summary(
+            [],
+            equipment_records=[
+                {
+                    "block": "BLOCK-1",
+                    "counts": counts,
+                }
+            ],
+        )
+        block = summary["blocks"][0]
+        self.assertEqual(block["equipment_progress"], 100)
+        self.assertEqual(block["work_progress"], 100)
+
+        intelligence = build_dashboard_intelligence(
+            [],
+            [],
+            block_rows=summary["blocks"],
+            project="150-MW-AKOLA-SITE",
+        )
+        self.assertEqual(intelligence["block_pressure"][0]["state"], "complete")
+        self.assertEqual(intelligence["block_pressure"][0]["progress"], 100)
 
     def test_security_headers_safe_redirect_and_missing_structure_qr(self):
         database, _user, _record, _transformer = build_fixture()

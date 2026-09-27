@@ -178,7 +178,7 @@ def calculate_counts(checklist_rows):
     completed = sum(1 for item in checklist_rows if item["status"] == "completed")
     pending = sum(1 for item in checklist_rows if item["status"] == "pending")
     na = sum(1 for item in checklist_rows if item["status"] == "na")
-    progress = round((completed / total) * 100) if total else 0
+    progress = round(((completed + na) / total) * 100) if total else 0
     return {
         "total": total,
         "completed": completed,
@@ -738,6 +738,10 @@ def _percent(part, total):
     return round((part / total) * 100) if total else 0
 
 
+def _resolved_percent(completed, na, total):
+    return _percent(int(completed or 0) + int(na or 0), int(total or 0))
+
+
 def _empty_block_summary(block_id):
     return {
         "block": block_id,
@@ -890,8 +894,9 @@ def build_project_summary(
         block_row["pending_structure_percent"] = _percent(
             block_row["pending_structures"], block_row["total_structures"]
         )
-        block_row["equipment_progress"] = _percent(
+        block_row["equipment_progress"] = _resolved_percent(
             block_row["equipment_completed_points"],
+            block_row["equipment_na_points"],
             block_row["equipment_total_points"],
         )
         block_row["work_total_points"] = (
@@ -907,8 +912,10 @@ def build_project_summary(
         block_row["work_na_points"] = (
             block_row["checklist_na"] + block_row["equipment_na_points"]
         )
-        block_row["work_progress"] = _percent(
-            block_row["work_completed_points"], block_row["work_total_points"]
+        block_row["work_progress"] = _resolved_percent(
+            block_row["work_completed_points"],
+            block_row["work_na_points"],
+            block_row["work_total_points"],
         )
         block_row["selected"] = bool(
             selected_block_id and block_row["block"] == selected_block_id
@@ -950,8 +957,10 @@ def build_project_summary(
     totals["pending_structure_percent"] = _percent(
         totals["pending_structures"], totals["total_structures"]
     )
-    totals["equipment_progress"] = _percent(
-        totals["equipment_completed_points"], totals["equipment_total_points"]
+    totals["equipment_progress"] = _resolved_percent(
+        totals["equipment_completed_points"],
+        totals["equipment_na_points"],
+        totals["equipment_total_points"],
     )
     totals["work_total_points"] = (
         totals["checklist_total"] + totals["equipment_total_points"]
@@ -963,8 +972,10 @@ def build_project_summary(
         totals["checklist_pending"] + totals["equipment_pending_points"]
     )
     totals["work_na_points"] = totals["checklist_na"] + totals["equipment_na_points"]
-    totals["work_progress"] = _percent(
-        totals["work_completed_points"], totals["work_total_points"]
+    totals["work_progress"] = _resolved_percent(
+        totals["work_completed_points"],
+        totals["work_na_points"],
+        totals["work_total_points"],
     )
     totals["blocks"] = block_rows
     totals["configured_block_count"] = block_count
