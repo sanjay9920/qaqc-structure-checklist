@@ -291,9 +291,65 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b'aria-label="Show password"', page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/static/service-worker.js")
-        self.assertIn(b"quality-sims-v17", service_worker.data)
+        self.assertIn(b"quality-sims-v18", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         service_worker.close()
+
+    def test_admin_and_user_account_page_supports_secure_password_change(self):
+        database = FakeFirestore()
+        client = build_test_app(database, logged_in=True).test_client()
+
+        page = client.get("/account")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b"My account", page.data)
+        self.assertIn(b"Change password", page.data)
+        self.assertIn(b'name="current_password"', page.data)
+        self.assertIn(b'data-password-toggle="newPassword"', page.data)
+        self.assertIn(b"Admin", page.data)
+
+        mismatch = client.post(
+            "/account/password",
+            data={
+                "current_password": "old-password",
+                "new_password": "new-password",
+                "confirm_password": "different-password",
+            },
+        )
+        self.assertEqual(mismatch.status_code, 302)
+        self.assertTrue(mismatch.headers["Location"].endswith("/account"))
+
+        class FakeAuthResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'{"localId":"admin","idToken":"verified-token"}'
+
+        with (
+            patch.object(app_module.url_request, "urlopen", return_value=FakeAuthResponse()),
+            patch.object(app_module, "initialize_firebase"),
+            patch.object(app_module.firebase_auth, "update_user") as update_user,
+            patch.object(
+                app_module.firebase_auth, "revoke_refresh_tokens"
+            ) as revoke_refresh_tokens,
+        ):
+            changed = client.post(
+                "/account/password",
+                data={
+                    "current_password": "old-password",
+                    "new_password": "new-password",
+                    "confirm_password": "new-password",
+                },
+            )
+
+        self.assertEqual(changed.status_code, 302)
+        self.assertTrue(changed.headers["Location"].endswith("/login"))
+        self.assertIn("firebase_session=", changed.headers.get("Set-Cookie", ""))
+        update_user.assert_called_once_with("admin", password="new-password")
+        revoke_refresh_tokens.assert_called_once_with("admin")
 
     def test_admin_can_recreate_email_from_legacy_removed_user(self):
         database = FakeFirestore()
@@ -638,8 +694,14 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Smart QA/QC tracking",
             b"Attention and next actions",
             b"Open points",
+            b"Create Structure Checklist",
+            b'class="structure-tools"',
         ]:
             self.assertIn(expected, page.data)
+        self.assertNotIn(b'class="structure-tools" open', page.data)
+
+        expanded = client.get(url + "&manage_structures=1")
+        self.assertIn(b'class="structure-tools" open', expanded.data)
 
         payload = client.get(
             "/admin/api/structures?project=100-MW-AKOLA-SITE&block=BLOCK-1"

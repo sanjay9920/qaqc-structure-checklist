@@ -674,9 +674,53 @@ def create_app():
     @app.get("/account")
     @login_required
     def worker_account():
-        if g.user.get("is_admin"):
-            return redirect(url_for("admin_dashboard"))
         return render_template("account.html")
+
+    @app.post("/account/password")
+    @login_required
+    def change_account_password():
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        if not current_password or not new_password or not confirm_password:
+            flash("Enter current password and the new password twice.", "danger")
+            return redirect(url_for("worker_account"))
+        if len(new_password) < 6:
+            flash("New password must be at least 6 characters.", "danger")
+            return redirect(url_for("worker_account"))
+        if new_password != confirm_password:
+            flash("New password and confirmation do not match.", "danger")
+            return redirect(url_for("worker_account"))
+        if new_password == current_password:
+            flash("New password must be different from the current password.", "danger")
+            return redirect(url_for("worker_account"))
+
+        try:
+            result = firebase_auth_request(
+                "signInWithPassword",
+                {
+                    "email": g.user.get("email", ""),
+                    "password": current_password,
+                    "returnSecureToken": True,
+                },
+            )
+            if result.get("localId") != g.user.get("uid"):
+                raise ValueError("INVALID_LOGIN_CREDENTIALS")
+            initialize_firebase()
+            firebase_auth.update_user(g.user["uid"], password=new_password)
+            firebase_auth.revoke_refresh_tokens(g.user["uid"])
+        except ValueError as exc:
+            flash(auth_error_message(exc), "danger")
+            return redirect(url_for("worker_account"))
+        except Exception:
+            app.logger.exception("Password change failed for %s", g.user.get("uid"))
+            flash("Could not change password. Please try again.", "danger")
+            return redirect(url_for("worker_account"))
+
+        flash("Password changed. Sign in again with your new password.", "success")
+        response = redirect(url_for("login"))
+        response.delete_cookie("firebase_session")
+        return response
 
     @app.get("/scan")
     @login_required
@@ -1443,6 +1487,7 @@ def create_app():
                 "admin_dashboard",
                 project=block_data["project_id"],
                 block=block_data["block"],
+                manage_structures="1",
             )
         )
 

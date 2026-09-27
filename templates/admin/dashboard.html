@@ -629,10 +629,20 @@
       <div id="checklistDashboardEmpty" class="checklist-directory-empty d-none">No checklist matches this filter.</div>
     </section>
 
+    <details class="structure-tools" {% if request.args.get('manage_structures') == '1' or bulk_start or request.args.get('create_id') %}open{% endif %}>
+      <summary class="structure-tools-trigger">
+        <span class="structure-tools-icon"><i class="bi bi-plus-square" aria-hidden="true"></i></span>
+        <span class="structure-tools-label">
+          <strong>Create Structure Checklist</strong>
+          <small>Open existing, create one or bulk create</small>
+        </span>
+        <i class="bi bi-chevron-down structure-tools-chevron" aria-hidden="true"></i>
+      </summary>
+      <div class="structure-tools-content">
     <section class="admin-panel block-open-panel">
       <div class="section-title-row">
         <div>
-          <h2 class="h5 mb-1">Open checklist</h2>
+          <h2 class="h5 mb-1">Open or prepare structure checklist</h2>
           <p class="dashboard-scope mb-0">Block {{ block | block_label }}</p>
         </div>
       </div>
@@ -725,6 +735,8 @@
       </div>
     </form>
   </section>
+      </div>
+    </details>
   {% endif %}
 
 {% endif %}
