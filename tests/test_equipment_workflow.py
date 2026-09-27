@@ -458,6 +458,41 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertNotIn(b"Created equipment checklists", page.data)
         self.assertNotIn(b"Equipment History CSV", page.data)
 
+    def test_project_dashboard_combines_every_blocks_structure_and_equipment_work(self):
+        database, _user, _record, _transformer = build_fixture()
+        client = build_test_app(database, logged_in=True).test_client()
+        url = "/admin?project=100-MW-AKOLA-SITE"
+
+        page = client.get(url)
+        self.assertEqual(page.status_code, 200)
+        for expected in [
+            b"Project QA/QC control center",
+            b"All checklist and work status",
+            b"Every block: checklist and work details",
+            b"Block 1",
+            b"Equipment checklists",
+            b"Combined QA/QC work",
+            b"Open Block Dashboard",
+        ]:
+            self.assertIn(expected, page.data)
+        self.assertNotIn(b"Open block", page.data)
+        self.assertNotIn(b"Block detail", page.data)
+
+        payload = client.get(
+            "/admin/api/structures?project=100-MW-AKOLA-SITE"
+        ).get_json()
+        summary = payload["project_summary"]
+        self.assertEqual(summary["equipment_total_records"], 2)
+        self.assertEqual(summary["equipment_pending_records"], 2)
+        self.assertEqual(summary["equipment_total_points"], 30)
+        self.assertEqual(summary["equipment_completed_points"], 1)
+        self.assertEqual(summary["work_total_points"], 30)
+        self.assertEqual(summary["work_completed_points"], 1)
+        block = next(item for item in summary["blocks"] if item["block"] == "BLOCK-1")
+        self.assertEqual(block["equipment_total_records"], 2)
+        self.assertEqual(block["equipment_pending_records"], 2)
+        self.assertEqual(block["work_progress"], 3)
+
     def test_checklist_dashboard_supports_multiple_equipment_records(self):
         database, _user, record, _transformer = build_fixture()
         client = build_test_app(database, logged_in=True).test_client()

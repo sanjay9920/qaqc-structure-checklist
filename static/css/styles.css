@@ -587,6 +587,299 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.project-command-center,
+.block-portfolio {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(23, 32, 51, 0.05);
+}
+
+.project-settings-panel {
+  margin-bottom: 1rem;
+  padding: 0;
+}
+
+.project-settings-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.project-settings-summary::-webkit-details-marker {
+  display: none;
+}
+
+.project-settings-action {
+  flex: 0 0 auto;
+  color: var(--blue);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.project-settings-panel[open] .project-settings-summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.project-settings-body {
+  padding: 1rem;
+}
+
+.project-command-center {
+  border-top: 4px solid var(--blue);
+}
+
+.project-command-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.project-progress-badge {
+  width: 84px;
+  height: 84px;
+  display: grid;
+  place-content: center;
+  flex: 0 0 auto;
+  text-align: center;
+  border: 7px solid #cfe0ff;
+  border-radius: 50%;
+  background: #f7faff;
+}
+
+.project-progress-badge strong,
+.project-progress-badge span {
+  display: block;
+}
+
+.project-progress-badge strong {
+  color: var(--blue);
+  font-size: 1.1rem;
+}
+
+.project-progress-badge span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.project-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.project-kpi {
+  min-width: 0;
+  padding: 0.9rem;
+  border-right: 1px solid var(--line);
+  background: #fbfcfe;
+}
+
+.project-kpi:last-child {
+  border-right: 0;
+}
+
+.project-kpi > span,
+.project-kpi small {
+  display: block;
+  color: var(--muted);
+}
+
+.project-kpi > span {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.project-kpi strong {
+  display: block;
+  margin: 0.15rem 0;
+  font-size: 1.45rem;
+}
+
+.project-kpi small {
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.project-workstreams {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.workstream-panel {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.workstream-heading,
+.workstream-heading > div,
+.workstream-meta,
+.block-work-card-header,
+.block-work-stream-title,
+.block-work-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.workstream-heading > div {
+  justify-content: flex-start;
+}
+
+.workstream-heading > span,
+.workstream-meta {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.workstream-label {
+  font-weight: 800;
+}
+
+.project-progress-track {
+  height: 0.55rem;
+  margin: 0.65rem 0 0.5rem;
+}
+
+.block-portfolio > .section-title-row {
+  margin-bottom: 0.85rem;
+}
+
+.block-portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.block-work-card {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-top: 3px solid #2e5bd7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.block-work-card-muted {
+  border-top-color: #8a94a6;
+}
+
+.block-work-card-header h3 {
+  margin: 0.1rem 0 0;
+  font-size: 1.05rem;
+}
+
+.block-progress-value {
+  color: var(--blue);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.block-work-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0.75rem 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.block-work-kpis > div {
+  min-width: 0;
+  padding: 0.55rem;
+  border-right: 1px solid var(--line);
+  text-align: center;
+}
+
+.block-work-kpis > div:last-child {
+  border-right: 0;
+}
+
+.block-work-kpis span,
+.block-work-kpis strong {
+  display: block;
+}
+
+.block-work-kpis span {
+  min-height: 2.2em;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.block-work-kpis strong {
+  margin-top: 0.2rem;
+  font-size: 1rem;
+}
+
+.block-work-stream {
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.block-work-stream-title {
+  margin-bottom: 0.45rem;
+  font-size: 0.78rem;
+}
+
+.block-work-stream .progress {
+  height: 0.45rem;
+}
+
+.block-work-stream small {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.block-work-total {
+  margin: 0.15rem 0 0.75rem;
+  padding: 0.65rem;
+  background: #f4f7fb;
+  border-radius: 8px;
+  font-size: 0.75rem;
+}
+
+.block-work-total span,
+.block-work-total strong {
+  display: block;
+}
+
+.block-work-total > span {
+  color: #9a6200;
+  font-weight: 800;
+}
+
+.block-portfolio-empty {
+  grid-column: 1 / -1;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
 .equipment-overview {
   margin-bottom: 1rem;
 }
@@ -867,6 +1160,44 @@ body {
 
   .checklist-directory-count {
     text-align: right;
+  }
+
+  .project-command-header {
+    align-items: flex-start;
+  }
+
+  .project-kpi-grid,
+  .project-workstreams,
+  .block-portfolio-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project-kpi {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .project-kpi:last-child {
+    border-bottom: 0;
+  }
+
+  .workstream-heading,
+  .workstream-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .block-work-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .block-work-kpis > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .block-work-kpis > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
   }
 }
 

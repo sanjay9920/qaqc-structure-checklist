@@ -596,6 +596,7 @@ def create_app():
                 project_structures,
                 block_id,
                 block_count=project_block_count,
+                equipment_records=equipment_records,
             ),
             "project": project_id,
             "project_display_name": project_display_names.get(

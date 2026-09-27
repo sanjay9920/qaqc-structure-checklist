@@ -133,13 +133,15 @@
 
 {% if project %}
   {% if not block %}
-    <section class="admin-panel block-open-panel">
-      <div class="section-title-row">
+    <details class="admin-panel project-settings-panel">
+      <summary class="project-settings-summary">
         <div>
           <h2 class="h5 mb-1">Project settings</h2>
-          <p class="dashboard-scope mb-0">Rename visible project name without changing QR links.</p>
+          <p class="dashboard-scope mb-0">Rename project, set total blocks or remove an empty project.</p>
         </div>
-      </div>
+        <span class="project-settings-action"><i class="bi bi-gear" aria-hidden="true"></i> Manage</span>
+      </summary>
+      <div class="project-settings-body">
       <form action="{{ url_for('admin_rename_project', project_id=project) }}" method="post" class="row g-2">
         <div class="col-12 col-md-8">
           <label for="project_display_name" class="form-label">Project name</label>
@@ -190,11 +192,12 @@
           </button>
         {% endif %}
       </form>
-    </section>
+      </div>
+    </details>
   {% endif %}
 
-  <section class="stat-grid project-stat-grid">
-    {% if block %}
+  {% if block %}
+    <section class="stat-grid project-stat-grid">
       {% set active_summary = project_summary.selected_block_summary %}
       <div class="stat-tile">
         <span>Block</span>
@@ -224,173 +227,170 @@
         <strong><span id="projectPendingPercent">{{ active_summary.pending_percent }}</span>%</strong>
         <small id="projectPendingPoints">{{ active_summary.checklist_pending }} / {{ active_summary.checklist_total }} points</small>
       </div>
-    {% else %}
-      <div class="stat-tile">
-        <span>Total blocks</span>
-        <strong id="totalBlocks">{{ project_summary.total_blocks }}</strong>
-      </div>
-      <div class="stat-tile">
-        <span>Total structures</span>
-        <strong id="projectTotalStructures">{{ project_summary.total_structures }}</strong>
-      </div>
-      <div class="stat-tile">
-        <span>Completed structures</span>
-        <strong id="projectCompletedStructures">{{ project_summary.completed_structures }}</strong>
-        <small id="projectCompletedStructuresNote">{{ project_summary.completed_structures }} / {{ project_summary.total_structures }} structures ({{ project_summary.structure_percent }}%)</small>
-      </div>
-      <div class="stat-tile">
-        <span>Pending structures</span>
-        <strong id="projectPendingStructures">{{ project_summary.pending_structures }}</strong>
-        <small id="projectPendingStructuresNote">{{ project_summary.pending_structures }} / {{ project_summary.total_structures }} structures ({{ project_summary.pending_structure_percent }}%)</small>
-      </div>
-      <div class="stat-tile">
-        <span>Completed points</span>
-        <strong><span id="projectCompletedPercent">{{ project_summary.completed_percent }}</span>%</strong>
-        <small id="projectCompletedPoints">{{ project_summary.checklist_completed }} / {{ project_summary.checklist_total }} points</small>
-      </div>
-      <div class="stat-tile">
-        <span>Pending points</span>
-        <strong><span id="projectPendingPercent">{{ project_summary.pending_percent }}</span>%</strong>
-        <small id="projectPendingPoints">{{ project_summary.checklist_pending }} / {{ project_summary.checklist_total }} points</small>
-      </div>
-    {% endif %}
-  </section>
-
-  <section class="equipment-overview" aria-labelledby="equipmentOverviewTitle">
-    <div class="section-title-row">
-      <div>
-        <p class="eyebrow mb-1">Electrical and equipment</p>
-        <h2 id="equipmentOverviewTitle" class="h5 mb-0">Checklist status</h2>
-      </div>
-      <span class="dashboard-scope">{% if block %}Block {{ block | block_label }}{% else %}All blocks{% endif %}</span>
-    </div>
-    <div class="stat-grid equipment-stat-grid">
-      <div class="stat-tile">
-        <span>Total checklists</span>
-        <strong id="equipmentTotalRecords">{{ equipment_summary.total_records }}</strong>
-      </div>
-      <div class="stat-tile">
-        <span>Completed checklists</span>
-        <strong id="equipmentCompletedRecords">{{ equipment_summary.completed_records }}</strong>
-      </div>
-      <div class="stat-tile">
-        <span>Pending checklists</span>
-        <strong id="equipmentPendingRecords">{{ equipment_summary.pending_records }}</strong>
-      </div>
-      <div class="stat-tile">
-        <span>Point progress</span>
-        <strong><span id="equipmentProgress">{{ equipment_summary.progress }}</span>%</strong>
-        <small><span id="equipmentCompletedPoints">{{ equipment_summary.completed_points }}</span> completed / <span id="equipmentPendingPoints">{{ equipment_summary.pending_points }}</span> pending / <span id="equipmentTotalPoints">{{ equipment_summary.total_points }}</span> total</small>
-      </div>
-    </div>
-  </section>
-
-  {% if not block %}
-    <section class="admin-panel block-open-panel">
-      <div class="section-title-row">
-        <div>
-          <h2 class="h5 mb-1">Open block</h2>
-          <p class="dashboard-scope mb-0">Select a block to open block work.</p>
-        </div>
-      </div>
-      <form action="{{ url_for('admin_dashboard') }}" method="get" class="row g-2">
-        <input type="hidden" name="project" value="{{ project }}">
-        <input type="hidden" name="q" value="">
-        {% if project_summary.blocks %}
-          <div class="col-12">
-            <label for="block_open_select" class="form-label">Select block</label>
-            <select id="block_open_select" name="block" class="form-select" required>
-              <option value="">Select block</option>
-              {% for block_option in project_summary.blocks %}
-                {% if block_option.block %}
-                  <option value="{{ block_option.block }}">
-                    Block {{ block_option.block_display }}{% if block_option.total_structures %} - {{ block_option.total_structures }} structure{% if block_option.total_structures != 1 %}s{% endif %}{% endif %}
-                  </option>
-                {% endif %}
-              {% endfor %}
-            </select>
-          </div>
-        {% else %}
-          <div class="col-12 col-md-8">
-            <label for="block_open" class="form-label">Block No.</label>
-            <input id="block_open" name="block" class="form-control" placeholder="1" autocomplete="off" required>
-          </div>
-          <div class="col-12 col-md-4 d-grid align-items-end">
-            <label class="form-label d-none d-md-block">&nbsp;</label>
-            <button class="btn btn-primary" type="submit">
-              <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
-              Open Block
-            </button>
-          </div>
-        {% endif %}
-      </form>
     </section>
 
-    <section class="admin-panel block-summary-panel">
+    <section class="equipment-overview" aria-labelledby="equipmentOverviewTitle">
       <div class="section-title-row">
         <div>
-          <h2 class="h5 mb-1">Block detail</h2>
-          <p class="dashboard-scope mb-0">Block-wise status</p>
+          <p class="eyebrow mb-1">Electrical and equipment</p>
+          <h2 id="equipmentOverviewTitle" class="h5 mb-0">Checklist status</h2>
+        </div>
+        <span class="dashboard-scope">Block {{ block | block_label }}</span>
+      </div>
+      <div class="stat-grid equipment-stat-grid">
+        <div class="stat-tile">
+          <span>Total checklists</span>
+          <strong id="equipmentTotalRecords">{{ equipment_summary.total_records }}</strong>
+        </div>
+        <div class="stat-tile">
+          <span>Completed checklists</span>
+          <strong id="equipmentCompletedRecords">{{ equipment_summary.completed_records }}</strong>
+        </div>
+        <div class="stat-tile">
+          <span>Pending checklists</span>
+          <strong id="equipmentPendingRecords">{{ equipment_summary.pending_records }}</strong>
+        </div>
+        <div class="stat-tile">
+          <span>Point progress</span>
+          <strong><span id="equipmentProgress">{{ equipment_summary.progress }}</span>%</strong>
+          <small><span id="equipmentCompletedPoints">{{ equipment_summary.completed_points }}</span> completed / <span id="equipmentPendingPoints">{{ equipment_summary.pending_points }}</span> pending / <span id="equipmentTotalPoints">{{ equipment_summary.total_points }}</span> total</small>
         </div>
       </div>
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Block</th>
-              <th>Structures</th>
-              <th>Completed structures</th>
-              <th>Pending structures</th>
-              <th>Completed points</th>
-              <th>Pending points</th>
-              <th>Point progress</th>
-              <th class="text-end">Action</th>
-            </tr>
-          </thead>
-          <tbody id="blockSummaryBody">
-            {% for block_row in project_summary.blocks %}
-              <tr>
-                <td class="fw-semibold">{% if block_row.block %}Block {{ block_row.block_display }}{% else %}{{ block_row.block_display }}{% endif %}</td>
-                <td>{{ block_row.total_structures }}</td>
-                <td>
-                  <strong>{{ block_row.completed_structures }}</strong>
-                  <small class="d-block text-muted">{{ block_row.structure_percent }}%</small>
-                </td>
-                <td>
-                  <strong>{{ block_row.pending_structures }}</strong>
-                  <small class="d-block text-muted">{{ block_row.pending_structure_percent }}%</small>
-                </td>
-                <td>
-                  <strong>{{ block_row.checklist_completed }} / {{ block_row.checklist_total }}</strong>
-                  <small class="d-block text-muted">{{ block_row.completed_percent }}%</small>
-                </td>
-                <td>
-                  <strong>{{ block_row.checklist_pending }} / {{ block_row.checklist_total }}</strong>
-                  <small class="d-block text-muted">{{ block_row.pending_percent }}%</small>
-                </td>
-                <td>
-                  <div class="progress table-progress">
-                    <div class="progress-bar" style="width: {{ block_row.completed_percent }}%"></div>
-                  </div>
-                  <span class="small text-muted">{{ block_row.completed_percent }}%</span>
-                </td>
-                <td class="text-end">
-                  {% if block_row.block %}
-                    <a class="btn btn-sm btn-outline-dark" href="{{ url_for('admin_dashboard', project=project, block=block_row.block) }}">
-                      Open
-                    </a>
-                  {% else %}
-                    <span class="text-muted small">No block</span>
-                  {% endif %}
-                </td>
-              </tr>
+    </section>
+  {% else %}
+    <section class="project-command-center" aria-labelledby="projectOverviewTitle">
+      <div class="project-command-header">
+        <div>
+          <p class="eyebrow mb-1">Project QA/QC control center</p>
+          <h2 id="projectOverviewTitle" class="h4 mb-1">All checklist and work status</h2>
+          <p class="dashboard-scope mb-0">Consolidated structure and equipment quality progress across every block.</p>
+        </div>
+        <div class="project-progress-badge" aria-label="Overall project progress">
+          <strong id="projectWorkProgress">{{ project_summary.work_progress }}%</strong>
+          <span>Overall</span>
+        </div>
+      </div>
+
+      <div class="project-kpi-grid">
+        <div class="project-kpi">
+          <span>Total blocks</span>
+          <strong id="totalBlocks">{{ project_summary.total_blocks }}</strong>
+          <small>Configured project work areas</small>
+        </div>
+        <div class="project-kpi">
+          <span>Total structures</span>
+          <strong id="projectTotalStructures">{{ project_summary.total_structures }}</strong>
+          <small><span id="projectCompletedStructures">{{ project_summary.completed_structures }}</span> completed · <span id="projectPendingStructures">{{ project_summary.pending_structures }}</span> pending</small>
+        </div>
+        <div class="project-kpi">
+          <span>Equipment checklists</span>
+          <strong id="equipmentTotalRecords">{{ equipment_summary.total_records }}</strong>
+          <small><span id="equipmentCompletedRecords">{{ equipment_summary.completed_records }}</span> completed · <span id="equipmentPendingRecords">{{ equipment_summary.pending_records }}</span> pending</small>
+        </div>
+        <div class="project-kpi">
+          <span>Total QA/QC points</span>
+          <strong id="projectWorkTotalPoints">{{ project_summary.work_total_points }}</strong>
+          <small>{{ project_summary.work_completed_points }} completed · {{ project_summary.work_pending_points }} pending</small>
+        </div>
+      </div>
+
+      <div class="project-workstreams">
+        <article class="workstream-panel">
+          <div class="workstream-heading">
+            <div>
+              <span class="workstream-label">Structure work</span>
+              <strong><span id="projectCompletedPercent">{{ project_summary.completed_percent }}</span>%</strong>
+            </div>
+            <span id="projectCompletedStructuresNote">{{ project_summary.completed_structures }} / {{ project_summary.total_structures }} structures complete</span>
+          </div>
+          <div class="progress project-progress-track" role="progressbar" aria-label="Structure checklist progress" aria-valuenow="{{ project_summary.completed_percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: {{ project_summary.completed_percent }}%"></div>
+          </div>
+          <div class="workstream-meta">
+            <span id="projectCompletedPoints">{{ project_summary.checklist_completed }} completed points</span>
+            <span id="projectPendingPoints"><span id="projectPendingPercent">{{ project_summary.pending_percent }}</span>% pending · {{ project_summary.checklist_pending }} points</span>
+          </div>
+          <span id="projectPendingStructuresNote" class="visually-hidden">{{ project_summary.pending_structures }} / {{ project_summary.total_structures }} structures pending</span>
+        </article>
+        <article class="workstream-panel">
+          <div class="workstream-heading">
+            <div>
+              <span class="workstream-label">Equipment checklists</span>
+              <strong><span id="equipmentProgress">{{ equipment_summary.progress }}</span>%</strong>
+            </div>
+            <span>{{ equipment_summary.completed_records }} / {{ equipment_summary.total_records }} checklists complete</span>
+          </div>
+          <div class="progress project-progress-track" role="progressbar" aria-label="Equipment checklist progress" aria-valuenow="{{ equipment_summary.progress }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar bg-success" style="width: {{ equipment_summary.progress }}%"></div>
+          </div>
+          <div class="workstream-meta">
+            <span><span id="equipmentCompletedPoints">{{ equipment_summary.completed_points }}</span> completed points</span>
+            <span><span id="equipmentPendingPoints">{{ equipment_summary.pending_points }}</span> pending · <span id="equipmentTotalPoints">{{ equipment_summary.total_points }}</span> total</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="block-portfolio" aria-labelledby="blockPortfolioTitle">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow mb-1">Block portfolio</p>
+          <h2 id="blockPortfolioTitle" class="h5 mb-1">Every block: checklist and work details</h2>
+          <p class="dashboard-scope mb-0">Structure and equipment progress combined for quick QA/QC tracking.</p>
+        </div>
+        <span class="catalog-count">{{ project_summary.total_blocks }} blocks</span>
+      </div>
+      <div id="blockSummaryBody" class="block-portfolio-grid">
+        {% for block_row in project_summary.blocks %}
+          <article class="block-work-card{% if not block_row.block %} block-work-card-muted{% endif %}">
+            <div class="block-work-card-header">
+              <div>
+                <span class="eyebrow">Work area</span>
+                <h3>{% if block_row.block %}Block {{ block_row.block_display }}{% else %}{{ block_row.block_display }}{% endif %}</h3>
+              </div>
+              <div class="block-progress-value">{{ block_row.work_progress }}%</div>
+            </div>
+            <div class="block-work-kpis">
+              <div><span>Structures</span><strong>{{ block_row.total_structures }}</strong></div>
+              <div><span>Structure done</span><strong>{{ block_row.completed_structures }}</strong></div>
+              <div><span>Structure pending</span><strong>{{ block_row.pending_structures }}</strong></div>
+              <div><span>Equipment checklists</span><strong>{{ block_row.equipment_total_records }}</strong></div>
+            </div>
+            <div class="block-work-stream">
+              <div class="block-work-stream-title">
+                <span>Structure checklist points</span>
+                <strong>{{ block_row.completed_percent }}%</strong>
+              </div>
+              <div class="progress"><div class="progress-bar" style="width: {{ block_row.completed_percent }}%"></div></div>
+              <small>{{ block_row.checklist_completed }} completed · {{ block_row.checklist_pending }} pending · {{ block_row.checklist_total }} total</small>
+            </div>
+            <div class="block-work-stream">
+              <div class="block-work-stream-title">
+                <span>Equipment checklist points</span>
+                <strong>{{ block_row.equipment_progress }}%</strong>
+              </div>
+              <div class="progress"><div class="progress-bar bg-success" style="width: {{ block_row.equipment_progress }}%"></div></div>
+              <small>{{ block_row.equipment_completed_records }} of {{ block_row.equipment_total_records }} checklists complete · {{ block_row.equipment_completed_points }} / {{ block_row.equipment_total_points }} points</small>
+            </div>
+            <div class="block-work-total">
+              <div>
+                <span>Combined QA/QC work</span>
+                <strong>{{ block_row.work_completed_points }} / {{ block_row.work_total_points }} points</strong>
+              </div>
+              <span>{{ block_row.work_pending_points }} pending</span>
+            </div>
+            {% if block_row.block %}
+              <a class="btn btn-primary w-100" href="{{ url_for('admin_dashboard', project=project, block=block_row.block) }}">
+                <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                Open Block Dashboard
+              </a>
             {% else %}
-              <tr>
-                <td colspan="8" class="text-center text-muted py-4">No blocks found. Save total blocks above.</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+              <span class="text-muted small">Assign these records to a block to open detailed work.</span>
+            {% endif %}
+          </article>
+        {% else %}
+          <div class="block-portfolio-empty">No blocks found. Set the project block count above.</div>
+        {% endfor %}
       </div>
     </section>
   {% endif %}
@@ -657,5 +657,5 @@
     block: {{ block | tojson }}
   };
 </script>
-<script src="{{ url_for('static', filename='js/admin_dashboard.js', v='11') }}"></script>
+<script src="{{ url_for('static', filename='js/admin_dashboard.js', v='12') }}"></script>
 {% endblock %}

@@ -18,6 +18,8 @@
   const projectPendingStructuresEl = document.getElementById("projectPendingStructures");
   const projectCompletedStructuresNoteEl = document.getElementById("projectCompletedStructuresNote");
   const projectPendingStructuresNoteEl = document.getElementById("projectPendingStructuresNote");
+  const projectWorkProgressEl = document.getElementById("projectWorkProgress");
+  const projectWorkTotalPointsEl = document.getElementById("projectWorkTotalPoints");
   const selectedBlockLabelEl = document.getElementById("selectedBlockLabel");
   const dashboardTitle = document.getElementById("dashboardTitle");
   const dashboardScope = document.getElementById("dashboardScope");
@@ -187,6 +189,12 @@
     if (projectPendingStructuresNoteEl) {
       projectPendingStructuresNoteEl.textContent = `${activeSummary.pending_structures || 0} / ${activeSummary.total_structures || 0} structures (${activeSummary.pending_structure_percent || 0}%)`;
     }
+    if (projectWorkProgressEl) {
+      projectWorkProgressEl.textContent = `${activeSummary.work_progress || 0}%`;
+    }
+    if (projectWorkTotalPointsEl) {
+      projectWorkTotalPointsEl.textContent = activeSummary.work_total_points || 0;
+    }
     if (selectedBlockLabelEl && summary.selected_block) {
       selectedBlockLabelEl.textContent = blockLabel(summary.selected_block);
     }
@@ -208,9 +216,7 @@
     const blockRows = Array.isArray(blocks) ? blocks : [];
     if (!blockRows.length) {
       blockSummaryBody.innerHTML = `
-        <tr>
-          <td colspan="8" class="text-center text-muted py-4">No blocks found. Create the first block below.</td>
-        </tr>
+        <div class="block-portfolio-empty">No blocks found. Set the project block count above.</div>
       `;
       return;
     }
@@ -219,36 +225,39 @@
       .map((block) => {
         const blockName = block.block ? `Block ${block.block_display}` : block.block_display;
         const action = block.block
-          ? `<a class="btn btn-sm ${block.selected ? "btn-primary" : "btn-outline-dark"}" href="${dashboardUrl(project, block.block)}">Select</a>`
+          ? `<a class="btn btn-primary w-100" href="${dashboardUrl(project, block.block)}"><i class="bi bi-speedometer2" aria-hidden="true"></i> Open Block Dashboard</a>`
           : `<span class="text-muted small">No block</span>`;
         return `
-          <tr class="${block.selected ? "table-primary" : ""}">
-            <td class="fw-semibold">${escapeHtml(blockName)}</td>
-            <td>${block.total_structures || 0}</td>
-            <td>
-              <strong>${block.completed_structures || 0}</strong>
-              <small class="d-block text-muted">${block.structure_percent || 0}%</small>
-            </td>
-            <td>
-              <strong>${block.pending_structures || 0}</strong>
-              <small class="d-block text-muted">${block.pending_structure_percent || 0}%</small>
-            </td>
-            <td>
-              <strong>${block.checklist_completed || 0} / ${block.checklist_total || 0}</strong>
-              <small class="d-block text-muted">${block.completed_percent || 0}%</small>
-            </td>
-            <td>
-              <strong>${block.checklist_pending || 0} / ${block.checklist_total || 0}</strong>
-              <small class="d-block text-muted">${block.pending_percent || 0}%</small>
-            </td>
-            <td>
-              <div class="progress table-progress">
-                <div class="progress-bar" style="width: ${block.completed_percent || 0}%"></div>
+          <article class="block-work-card${block.block ? "" : " block-work-card-muted"}">
+            <div class="block-work-card-header">
+              <div><span class="eyebrow">Work area</span><h3>${escapeHtml(blockName)}</h3></div>
+              <div class="block-progress-value">${block.work_progress || 0}%</div>
+            </div>
+            <div class="block-work-kpis">
+              <div><span>Structures</span><strong>${block.total_structures || 0}</strong></div>
+              <div><span>Structure done</span><strong>${block.completed_structures || 0}</strong></div>
+              <div><span>Structure pending</span><strong>${block.pending_structures || 0}</strong></div>
+              <div><span>Equipment checklists</span><strong>${block.equipment_total_records || 0}</strong></div>
+            </div>
+            <div class="block-work-stream">
+              <div class="block-work-stream-title"><span>Structure checklist points</span><strong>${block.completed_percent || 0}%</strong></div>
+              <div class="progress"><div class="progress-bar" style="width: ${block.completed_percent || 0}%"></div></div>
+              <small>${block.checklist_completed || 0} completed · ${block.checklist_pending || 0} pending · ${block.checklist_total || 0} total</small>
+            </div>
+            <div class="block-work-stream">
+              <div class="block-work-stream-title"><span>Equipment checklist points</span><strong>${block.equipment_progress || 0}%</strong></div>
+              <div class="progress"><div class="progress-bar bg-success" style="width: ${block.equipment_progress || 0}%"></div></div>
+              <small>${block.equipment_completed_records || 0} of ${block.equipment_total_records || 0} checklists complete · ${block.equipment_completed_points || 0} / ${block.equipment_total_points || 0} points</small>
+            </div>
+            <div class="block-work-total">
+              <div>
+                <span>Combined QA/QC work</span>
+                <strong>${block.work_completed_points || 0} / ${block.work_total_points || 0} points</strong>
               </div>
-              <span class="small text-muted">${block.completed_percent || 0}%</span>
-            </td>
-            <td class="text-end">${action}</td>
-          </tr>
+              <span>${block.work_pending_points || 0} pending</span>
+            </div>
+            ${action}
+          </article>
         `;
       })
       .join("");

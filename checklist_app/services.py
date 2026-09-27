@@ -705,11 +705,26 @@ def _empty_block_summary(block_id):
         "pending_percent": 0,
         "structure_percent": 0,
         "pending_structure_percent": 0,
+        "equipment_total_records": 0,
+        "equipment_completed_records": 0,
+        "equipment_pending_records": 0,
+        "equipment_total_points": 0,
+        "equipment_completed_points": 0,
+        "equipment_pending_points": 0,
+        "equipment_na_points": 0,
+        "equipment_progress": 0,
+        "work_total_points": 0,
+        "work_completed_points": 0,
+        "work_pending_points": 0,
+        "work_na_points": 0,
+        "work_progress": 0,
         "selected": False,
     }
 
 
-def build_project_summary(structures, selected_block=None, block_count=0):
+def build_project_summary(
+    structures, selected_block=None, block_count=0, equipment_records=None
+):
     selected_block_id = normalize_block(selected_block)
     try:
         block_count = max(0, int(block_count or 0))
@@ -728,6 +743,19 @@ def build_project_summary(structures, selected_block=None, block_count=0):
         "pending_percent": 0,
         "structure_percent": 0,
         "pending_structure_percent": 0,
+        "equipment_total_records": 0,
+        "equipment_completed_records": 0,
+        "equipment_pending_records": 0,
+        "equipment_total_points": 0,
+        "equipment_completed_points": 0,
+        "equipment_pending_points": 0,
+        "equipment_na_points": 0,
+        "equipment_progress": 0,
+        "work_total_points": 0,
+        "work_completed_points": 0,
+        "work_pending_points": 0,
+        "work_na_points": 0,
+        "work_progress": 0,
         "blocks": [],
     }
     blocks = {}
@@ -765,6 +793,37 @@ def build_project_summary(structures, selected_block=None, block_count=0):
         else:
             block_row["pending_structures"] += 1
 
+    for record in equipment_records or []:
+        counts = record.get("counts", {}) or {}
+        total_points = int(counts.get("total") or 0)
+        completed_points = int(counts.get("completed") or 0)
+        pending_points = int(counts.get("pending") or 0)
+        na_points = int(counts.get("na") or 0)
+        is_completed = pending_points == 0 and total_points > 0
+
+        totals["equipment_total_records"] += 1
+        totals["equipment_total_points"] += total_points
+        totals["equipment_completed_points"] += completed_points
+        totals["equipment_pending_points"] += pending_points
+        totals["equipment_na_points"] += na_points
+        if is_completed:
+            totals["equipment_completed_records"] += 1
+        else:
+            totals["equipment_pending_records"] += 1
+
+        block_id = normalize_block(record.get("block") or "")
+        block_key = block_id or "__NO_BLOCK__"
+        block_row = blocks.setdefault(block_key, _empty_block_summary(block_id))
+        block_row["equipment_total_records"] += 1
+        block_row["equipment_total_points"] += total_points
+        block_row["equipment_completed_points"] += completed_points
+        block_row["equipment_pending_points"] += pending_points
+        block_row["equipment_na_points"] += na_points
+        if is_completed:
+            block_row["equipment_completed_records"] += 1
+        else:
+            block_row["equipment_pending_records"] += 1
+
     for number in range(1, block_count + 1):
         block_id = normalize_block(str(number))
         blocks.setdefault(block_id, _empty_block_summary(block_id))
@@ -782,6 +841,26 @@ def build_project_summary(structures, selected_block=None, block_count=0):
         )
         block_row["pending_structure_percent"] = _percent(
             block_row["pending_structures"], block_row["total_structures"]
+        )
+        block_row["equipment_progress"] = _percent(
+            block_row["equipment_completed_points"],
+            block_row["equipment_total_points"],
+        )
+        block_row["work_total_points"] = (
+            block_row["checklist_total"] + block_row["equipment_total_points"]
+        )
+        block_row["work_completed_points"] = (
+            block_row["checklist_completed"]
+            + block_row["equipment_completed_points"]
+        )
+        block_row["work_pending_points"] = (
+            block_row["checklist_pending"] + block_row["equipment_pending_points"]
+        )
+        block_row["work_na_points"] = (
+            block_row["checklist_na"] + block_row["equipment_na_points"]
+        )
+        block_row["work_progress"] = _percent(
+            block_row["work_completed_points"], block_row["work_total_points"]
         )
         block_row["selected"] = bool(
             selected_block_id and block_row["block"] == selected_block_id
@@ -822,6 +901,22 @@ def build_project_summary(structures, selected_block=None, block_count=0):
     )
     totals["pending_structure_percent"] = _percent(
         totals["pending_structures"], totals["total_structures"]
+    )
+    totals["equipment_progress"] = _percent(
+        totals["equipment_completed_points"], totals["equipment_total_points"]
+    )
+    totals["work_total_points"] = (
+        totals["checklist_total"] + totals["equipment_total_points"]
+    )
+    totals["work_completed_points"] = (
+        totals["checklist_completed"] + totals["equipment_completed_points"]
+    )
+    totals["work_pending_points"] = (
+        totals["checklist_pending"] + totals["equipment_pending_points"]
+    )
+    totals["work_na_points"] = totals["checklist_na"] + totals["equipment_na_points"]
+    totals["work_progress"] = _percent(
+        totals["work_completed_points"], totals["work_total_points"]
     )
     totals["blocks"] = block_rows
     totals["configured_block_count"] = block_count
