@@ -1087,12 +1087,34 @@ def create_app():
             dashboard_record(record)
             for record in filtered_records[start : start + per_page]
         ]
+        records_by_block = {}
+        for record in all_records:
+            records_by_block.setdefault(record.get("block", ""), []).append(record)
+        block_summaries = []
+        for record_block, block_records in records_by_block.items():
+            block_summary = build_equipment_summary(block_records)
+            block_summaries.append(
+                {
+                    "block": record_block,
+                    "block_display": display_block(record_block) or "Unassigned",
+                    **block_summary,
+                }
+            )
+        block_summaries.sort(
+            key=lambda item: (
+                0,
+                int(item["block_display"]),
+            )
+            if str(item["block_display"]).isdigit()
+            else (1, str(item["block_display"]))
+        )
         return {
             "project": project_id,
             "block": block_id,
             "template": template,
             "records": page_records,
             "summary": build_equipment_summary(all_records),
+            "block_summaries": block_summaries,
             "family_summaries": build_equipment_family_summaries(all_records),
             "smart_tracking": build_dashboard_intelligence(
                 [],
@@ -1126,9 +1148,6 @@ def create_app():
         access_error = require_project_access(project_id)
         if access_error:
             return access_error
-        if not block_id:
-            flash("Select a block before opening a checklist dashboard.", "warning")
-            return redirect(url_for("admin_dashboard", project=project_id))
         payload = equipment_dashboard_payload(
             project_id,
             block_id,
@@ -1151,8 +1170,8 @@ def create_app():
         project_id, block_id = normalize_scope(
             request.args.get("project", ""), request.args.get("block", "")
         )
-        if not project_id or not block_id:
-            return jsonify({"error": "Project and block are required."}), 400
+        if not project_id:
+            return jsonify({"error": "Project is required."}), 400
         if not user_can_access_project(g.user, project_id):
             return jsonify({"error": "You do not have access to this project."}), 403
         payload = equipment_dashboard_payload(

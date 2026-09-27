@@ -942,6 +942,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertNotIn(b"Block detail", page.data)
         self.assertNotIn(b"Equipment, asset and circuit register", page.data)
         self.assertIn(b"B1 / SCB-1", page.data)
+        self.assertIn(b"compact-card-link", page.data)
+        self.assertIn(b"/admin/equipment-dashboard/cable-laying?project=100-MW-AKOLA-SITE", page.data)
 
         payload = client.get(
             "/admin/api/structures?project=100-MW-AKOLA-SITE"
@@ -1075,6 +1077,50 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(cable_summary["total_records"], 2)
         self.assertEqual(
             get_next_equipment_record_number(payload["records"]), "03"
+        )
+
+        create_equipment_checklist(
+            database,
+            "100 MW AKOLA SITE",
+            "2",
+            "cable-laying",
+            "01",
+            "admin@example.com",
+            equipment_identification="HT-PANEL-2",
+            specification="400 SQMM",
+            vendor_name="KEI",
+        )
+        project_dashboard_url = (
+            "/admin/equipment-dashboard/cable-laying?project=100-MW-AKOLA-SITE"
+        )
+        project_page = client.get(project_dashboard_url)
+        self.assertEqual(project_page.status_code, 200)
+        for expected in [
+            b"All active blocks",
+            b"Combined quantity, progress and pending work across every block.",
+            b"Quantity and progress by block",
+            b"Block 1",
+            b"Block 2",
+            b"Quantity",
+            b"Completed",
+            b"Pending",
+        ]:
+            self.assertIn(expected, project_page.data)
+        self.assertNotIn(b"Add checklist record", project_page.data)
+
+        project_payload = client.get(
+            "/admin/api/equipment-dashboard/cable-laying"
+            "?project=100-MW-AKOLA-SITE"
+        ).get_json()
+        self.assertEqual(project_payload["summary"]["total_records"], 3)
+        self.assertEqual(len(project_payload["block_summaries"]), 2)
+        self.assertEqual(
+            [item["block"] for item in project_payload["block_summaries"]],
+            ["BLOCK-1", "BLOCK-2"],
+        )
+        self.assertEqual(
+            {item["block"] for item in project_payload["records"]},
+            {"BLOCK-1", "BLOCK-2"},
         )
 
     def test_smart_tracking_prioritizes_stale_and_incomplete_work(self):

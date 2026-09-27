@@ -9,6 +9,8 @@
   const previousPage = document.getElementById("equipmentPreviousPage");
   const nextPage = document.getElementById("equipmentNextPage");
   const pageStatus = document.getElementById("equipmentPageStatus");
+  const blockSummaryBody = document.getElementById("checklistBlockSummaryBody");
+  const blockCount = document.getElementById("checklistBlockCount");
   if (!config.apiUrl || !recordsBody) return;
 
   let refreshInFlight = false;
@@ -31,6 +33,14 @@
 
   function equipmentUrl(equipmentId) {
     return `/equipment/${encodeURIComponent(equipmentId)}`;
+  }
+
+  function blockLabel(value) {
+    return String(value || "").replace(/^BLOCK-/, "") || "Unassigned";
+  }
+
+  function blockDashboardUrl(block) {
+    return `/admin/equipment-dashboard/${encodeURIComponent(config.templateId || "")}?project=${encodeURIComponent(config.project || "")}&block=${encodeURIComponent(block || "")}`;
   }
 
   function renderSummary(summary) {
@@ -60,6 +70,7 @@
     return `
       <tr>
         <td><strong>${escapeHtml(record.work_id || "")}</strong><small class="d-block text-muted">Record ${escapeHtml(record.record_number || "")}</small></td>
+        ${config.showBlock ? `<td><a href="${blockDashboardUrl(record.block)}"><strong>Block ${escapeHtml(blockLabel(record.block))}</strong></a></td>` : ""}
         <td><strong>${escapeHtml(record.equipment_identification || "Not set")}</strong></td>
         <td>${escapeHtml(record.identity_details_text || "-")}</td>
         <td>${escapeHtml(record.specification || "-")}</td>
@@ -82,6 +93,21 @@
     `;
   }
 
+  function renderBlockSummaries(items) {
+    if (!blockSummaryBody) return;
+    const rows = Array.isArray(items) ? items : [];
+    if (blockCount) blockCount.textContent = rows.length;
+    blockSummaryBody.innerHTML = rows.length ? rows.map((item) => `
+      <tr>
+        <td><strong>Block ${escapeHtml(item.block_display || blockLabel(item.block))}</strong></td>
+        <td>${item.total_records || 0}</td>
+        <td>${item.completed_records || 0}</td>
+        <td>${item.pending_records || 0}</td>
+        <td><div class="progress table-progress"><div class="progress-bar" style="width: ${item.progress || 0}%"></div></div><span class="small text-muted">${item.progress || 0}% · ${item.completed_points || 0} complete · ${item.pending_points || 0} pending points</span></td>
+        <td class="text-end"><a class="btn btn-sm btn-outline-dark" href="${blockDashboardUrl(item.block)}"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i> Open Block</a></td>
+      </tr>`).join("") : '<tr><td colspan="6" class="text-center text-muted py-4">No block records found.</td></tr>';
+  }
+
   function renderPagination(pagination) {
     const values = pagination || {};
     currentPage = values.page || 1;
@@ -96,10 +122,11 @@
   function render(payload) {
     const records = Array.isArray(payload.records) ? payload.records : [];
     renderSummary(payload.summary || {});
+    renderBlockSummaries(payload.block_summaries || []);
     if (window.smartTracking) window.smartTracking.render(payload.smart_tracking || {});
     recordsBody.innerHTML = records.length
       ? records.map(renderRecord).join("")
-      : '<tr><td colspan="8" class="text-center text-muted py-4">No matching checklist records.</td></tr>';
+      : `<tr><td colspan="${config.showBlock ? 9 : 8}" class="text-center text-muted py-4">No matching checklist records.</td></tr>`;
     renderPagination(payload.pagination || {});
     if (recordNumberInput && document.activeElement !== recordNumberInput) {
       recordNumberInput.value = payload.next_record_number || "01";

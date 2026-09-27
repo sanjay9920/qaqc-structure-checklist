@@ -7,14 +7,16 @@
   <div>
     <p class="eyebrow mb-1">Quality Department Checklist Dashboard</p>
     <h1 class="h3 mb-1">{{ template.name }}</h1>
-    <p class="dashboard-scope mb-0">{{ project_display_name }} / Block {{ block | block_label }} / {{ template.format_no }}</p>
-    <p class="dashboard-tagline mb-0">Create and track every work record for this checklist type.</p>
+    <p class="dashboard-scope mb-0">{{ project_display_name }} / {% if block %}Block {{ block | block_label }}{% else %}All active blocks{% endif %} / {{ template.format_no }}</p>
+    <p class="dashboard-tagline mb-0">{% if block %}Create and track every work record for this checklist type.{% else %}Combined quantity, progress and pending work across every block.{% endif %}</p>
   </div>
   <div class="d-flex flex-wrap gap-2">
+    {% if block %}
     <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=project, block=block) }}">
       <i class="bi bi-arrow-left" aria-hidden="true"></i>
       Block Dashboard
     </a>
+    {% endif %}
     <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=project) }}">
       <i class="bi bi-speedometer2" aria-hidden="true"></i>
       Project Dashboard
@@ -66,8 +68,40 @@
   </div>
 </section>
 
+{% if not block and block_summaries %}
+<section class="admin-table checklist-block-summary mb-3" aria-labelledby="checklistBlockSummaryTitle">
+  <div class="equipment-table-heading">
+    <div>
+      <p class="eyebrow mb-1">Block-wise control</p>
+      <h2 id="checklistBlockSummaryTitle" class="h5 mb-0">Quantity and progress by block</h2>
+    </div>
+    <span class="catalog-count"><span id="checklistBlockCount">{{ block_summaries | length }}</span>&nbsp;active blocks</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr><th>Block</th><th>Quantity</th><th>Completed</th><th>Pending</th><th>Progress</th><th class="text-end">Action</th></tr>
+      </thead>
+      <tbody id="checklistBlockSummaryBody">
+        {% for item in block_summaries %}
+          <tr>
+            <td><strong>Block {{ item.block_display }}</strong></td>
+            <td>{{ item.total_records }}</td>
+            <td>{{ item.completed_records }}</td>
+            <td>{{ item.pending_records }}</td>
+            <td><div class="progress table-progress"><div class="progress-bar" style="width: {{ item.progress }}%"></div></div><span class="small text-muted">{{ item.progress }}% · {{ item.completed_points }} complete · {{ item.pending_points }} pending points</span></td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-dark" href="{{ url_for('admin_equipment_dashboard', template_id=template.template_id, project=project, block=item.block) }}"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i> Open Block</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
 {% include "admin/_smart_tracking.html" %}
 
+{% if block %}
 <section class="admin-panel mb-3" aria-labelledby="createEquipmentTitle">
   <div class="section-title-row">
     <div>
@@ -110,6 +144,7 @@
     </div>
   </form>
 </section>
+{% endif %}
 
 <section class="admin-table mb-3" aria-labelledby="equipmentRecordsTitle">
   <div class="equipment-table-heading">
@@ -138,6 +173,7 @@
       <thead>
         <tr>
           <th>Work ID</th>
+          {% if not block %}<th>Block</th>{% endif %}
           <th>{{ template.identity_profile.primary_label }}</th>
           <th>Route / Record Details</th>
           <th>{{ template.identity_profile.specification_label }}</th>
@@ -151,6 +187,7 @@
         {% for record in records %}
           <tr>
             <td><strong>{{ record.work_id }}</strong><small class="d-block text-muted">Record {{ record.record_number }}</small></td>
+            {% if not block %}<td><a href="{{ url_for('admin_equipment_dashboard', template_id=template.template_id, project=project, block=record.block) }}"><strong>Block {{ record.block | block_label }}</strong></a></td>{% endif %}
             <td><strong>{{ record.equipment_identification or "Not set" }}</strong></td>
             <td>{{ record.identity_details_text or "-" }}</td>
             <td>{{ record.specification or "-" }}</td>
@@ -171,7 +208,7 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="8" class="text-center text-muted py-4">No matching checklist records.</td></tr>
+          <tr><td colspan="{{ 9 if not block else 8 }}" class="text-center text-muted py-4">No matching checklist records.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -189,6 +226,8 @@
   window.equipmentTypeDashboard = {
     apiUrl: {{ url_for('admin_equipment_dashboard_api', template_id=template.template_id, project=project, block=block) | tojson }},
     templateId: {{ template.template_id | tojson }},
+    project: {{ project | tojson }},
+    showBlock: {{ (not block) | tojson }},
     page: {{ pagination.page | tojson }}
   };
 </script>

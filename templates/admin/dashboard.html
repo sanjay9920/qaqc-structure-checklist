@@ -451,7 +451,7 @@
     </div>
     <div id="scopeChecklistWorkBody" class="compact-tracking-grid compact-scroll-area">
       {% for item in equipment_template_summaries if item.total_records %}
-        <article class="compact-tracking-card compact-checklist-card">
+        <a class="compact-tracking-card compact-checklist-card compact-card-link" href="{{ url_for('admin_equipment_dashboard', template_id=item.template_id, project=project, block=block) }}" aria-label="Open {{ item.name }} dashboard">
           <div class="compact-tracking-head">
             <div class="compact-tracking-title"><strong>{{ item.name }}</strong><small>{{ item.format_no }} · {{ item.total_records }} records</small></div>
             <div class="mini-progress-ring" style="--progress: {{ item.progress }}" role="img" aria-label="{{ item.progress }} percent complete"><span>{{ item.progress }}%</span></div>
@@ -461,9 +461,9 @@
           <div class="compact-id-line">{% for unit in item.equipment_units %}<span>{% if not block %}B{{ unit.block | block_label }} / {% endif %}{{ unit.label }}</span>{% endfor %}{% if item.additional_equipment_unit_count %}<span>+{{ item.additional_equipment_unit_count }}</span>{% endif %}</div>
           <div class="compact-card-footer">
             <div class="progress compact-progress-bar"><div class="progress-bar" style="width: {{ item.progress }}%"></div></div>
-            {% if block %}<a class="btn btn-sm btn-outline-primary compact-open-button" href="{{ url_for('admin_equipment_dashboard', template_id=item.template_id, project=project, block=block) }}" title="Open {{ item.name }} dashboard" aria-label="Open {{ item.name }} dashboard"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i></a>{% endif %}
+            <span class="btn btn-sm btn-outline-primary compact-open-button" title="Open {{ item.name }} dashboard"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i></span>
           </div>
-        </article>
+        </a>
       {% else %}
         <div class="compact-empty-state">No checklist work created in this scope.</div>
       {% endfor %}

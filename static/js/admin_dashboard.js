@@ -282,10 +282,8 @@
         : labels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
       const additionalCount = units.length ? item.additional_equipment_unit_count : item.additional_equipment_count;
       const more = additionalCount ? `<span>+${additionalCount}</span>` : "";
-      const action = block
-        ? `<a class="btn btn-sm btn-outline-primary compact-open-button" href="/admin/equipment-dashboard/${encodeURIComponent(item.template_id || "")}?project=${encodeURIComponent(project || "")}&block=${encodeURIComponent(block)}" title="Open ${escapeHtml(item.name || "Checklist")} dashboard" aria-label="Open ${escapeHtml(item.name || "Checklist")} dashboard"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i></a>`
-        : "";
-      return `<article class="compact-tracking-card compact-checklist-card">
+      const dashboardHref = `/admin/equipment-dashboard/${encodeURIComponent(item.template_id || "")}?project=${encodeURIComponent(project || "")}&block=${encodeURIComponent(block || "")}`;
+      return `<a class="compact-tracking-card compact-checklist-card compact-card-link" href="${dashboardHref}" aria-label="Open ${escapeHtml(item.name || "Checklist")} dashboard">
         <div class="compact-tracking-head">
           <div class="compact-tracking-title"><strong>${escapeHtml(item.name || "Checklist")}</strong><small>${escapeHtml(item.format_no || "")} · ${item.total_records || 0} records</small></div>
           <div class="mini-progress-ring" style="--progress: ${item.progress || 0}" role="img" aria-label="${item.progress || 0} percent complete"><span>${item.progress || 0}%</span></div>
@@ -293,8 +291,8 @@
         <div class="compact-status-row"><span class="status-complete"><b>${item.completed_records || 0}</b> done</span><span class="status-progress"><b>${item.in_progress_records || 0}</b> active</span><span class="status-pending"><b>${item.not_started_records || 0}</b> waiting</span></div>
         <div class="compact-meta-row"><span>${item.completed_points || 0}/${item.total_points || 0} points</span><span>${item.pending_points || 0} pending</span><span>${item.block_count || 0} block${item.block_count === 1 ? "" : "s"}</span></div>
         <div class="compact-id-line">${ids}${more}</div>
-        <div class="compact-card-footer"><div class="progress compact-progress-bar"><div class="progress-bar" style="width: ${item.progress || 0}%"></div></div>${action}</div>
-      </article>`;
+        <div class="compact-card-footer"><div class="progress compact-progress-bar"><div class="progress-bar" style="width: ${item.progress || 0}%"></div></div><span class="btn btn-sm btn-outline-primary compact-open-button" title="Open ${escapeHtml(item.name || "Checklist")} dashboard"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i></span></div>
+      </a>`;
     }).join("") : '<div class="compact-empty-state">No checklist work created in this scope.</div>';
   }
 
