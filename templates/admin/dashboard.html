@@ -81,7 +81,7 @@
     </form>
   {% endif %}
 
-  <form id="dashboardFilterForm" class="{% if project and not block %}d-none search-row{% else %}admin-panel search-row {% if project %}span-all{% endif %}{% endif %}" action="{{ url_for('admin_dashboard') }}" method="get">
+  <form id="dashboardFilterForm" class="{% if project and not block %}d-none search-row{% else %}admin-panel search-row {% if project %}span-all{% endif %} {% if project and block %}block-dashboard-search{% endif %}{% endif %}" action="{{ url_for('admin_dashboard') }}" method="get">
     {% if project and not block %}
       <input type="hidden" name="project" value="{{ project }}">
       <input type="hidden" name="q" value="">
@@ -190,7 +190,7 @@
   {% endif %}
 
   {% if block %}
-    <section class="stat-grid project-stat-grid">
+    <section class="stat-grid project-stat-grid block-dashboard-stats">
       {% set active_summary = project_summary.selected_block_summary %}
       <div class="stat-tile">
         <span>Block</span>
@@ -222,7 +222,7 @@
       </div>
     </section>
 
-    <section class="equipment-overview" aria-labelledby="equipmentOverviewTitle">
+    <section class="equipment-overview block-equipment-overview" aria-labelledby="equipmentOverviewTitle">
       <div class="section-title-row">
         <div>
           <p class="eyebrow mb-1">Electrical and equipment</p>
@@ -230,7 +230,7 @@
         </div>
         <span class="dashboard-scope">Block {{ block | block_label }}</span>
       </div>
-      <div class="stat-grid equipment-stat-grid">
+      <div class="stat-grid equipment-stat-grid block-checklist-stats">
         <div class="stat-tile">
           <span>Total checklists</span>
           <strong id="equipmentTotalRecords">{{ equipment_summary.total_records }}</strong>

@@ -233,8 +233,8 @@ body {
 }
 
 .summary-label,
-.structure-info-tile span,
-.stat-tile span {
+.structure-info-tile > span,
+.stat-tile > span {
   display: block;
   color: var(--muted);
   font-size: 0.78rem;
@@ -587,6 +587,62 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.block-dashboard-search {
+  margin: 0.65rem 0 0.75rem;
+  padding: 0.75rem;
+}
+
+.block-dashboard-search h2 {
+  margin-bottom: 0.45rem;
+  font-size: 1rem;
+}
+
+.block-dashboard-search .form-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.block-dashboard-search .form-control,
+.block-dashboard-search .input-group-text,
+.block-dashboard-search .btn {
+  min-height: 38px;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.block-dashboard-stats {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.block-dashboard-stats .stat-tile,
+.block-checklist-stats .stat-tile {
+  padding: 0.65rem 0.75rem;
+}
+
+.block-dashboard-stats .stat-tile > span,
+.block-checklist-stats .stat-tile > span {
+  font-size: 0.66rem;
+  line-height: 1.2;
+}
+
+.block-dashboard-stats .stat-tile strong,
+.block-checklist-stats .stat-tile strong {
+  margin-top: 0.15rem;
+  font-size: 1.12rem;
+  line-height: 1.15;
+}
+
+.block-dashboard-stats .stat-tile small,
+.block-checklist-stats .stat-tile small {
+  margin-top: 0.18rem;
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
 .project-command-center,
 .block-portfolio {
   margin-bottom: 1rem;
@@ -889,6 +945,29 @@ body {
 
 .equipment-stat-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.block-equipment-overview {
+  margin-bottom: 0.75rem;
+}
+
+.block-equipment-overview > .section-title-row {
+  margin-bottom: 0.5rem;
+}
+
+.block-equipment-overview .eyebrow {
+  margin-bottom: 0.1rem !important;
+  font-size: 0.68rem;
+}
+
+.block-equipment-overview h2 {
+  font-size: 1rem;
+}
+
+.block-checklist-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0;
 }
 
 .equipment-create-panel {
@@ -1753,6 +1832,11 @@ body {
   .admin-grid,
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .block-dashboard-stats,
+  .block-checklist-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .summary-grid {
