@@ -234,8 +234,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b'aria-label="Show password"', page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/static/service-worker.js")
-        self.assertIn(b"quality-sims-v13", service_worker.data)
-        self.assertIn(b"/static/js/password-toggle.js", service_worker.data)
+        self.assertIn(b"quality-sims-v14", service_worker.data)
+        self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         service_worker.close()
 
     def test_admin_can_recreate_email_from_legacy_removed_user(self):

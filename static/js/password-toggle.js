@@ -1,10 +1,5 @@
 (function () {
-  document.addEventListener("click", function (event) {
-    const button = event.target.closest("[data-password-toggle]");
-    if (!button) {
-      return;
-    }
-
+  function togglePassword(button) {
     const input = document.getElementById(button.dataset.passwordToggle);
     if (!input) {
       return;
@@ -21,5 +16,11 @@
     if (icon) {
       icon.className = showPassword ? "bi bi-eye-slash" : "bi bi-eye";
     }
+  }
+
+  document.querySelectorAll("[data-password-toggle]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      togglePassword(button);
+    });
   });
 })();

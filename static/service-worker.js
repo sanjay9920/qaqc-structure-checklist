@@ -1,9 +1,9 @@
-const CACHE_NAME = "quality-sims-v13";
+const CACHE_NAME = "quality-sims-v14";
 const APP_SHELL = [
   "/static/offline.html",
   "/static/css/styles.css",
   "/static/js/login.js",
-  "/static/js/password-toggle.js",
+  "/static/js/password-toggle.js?v=2",
   "/static/js/pwa.js",
   "/static/js/scanner.js",
   "/static/manifest.webmanifest",
