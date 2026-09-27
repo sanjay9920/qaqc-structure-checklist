@@ -223,6 +223,21 @@ def build_test_app(database, logged_in=False):
 
 
 class EquipmentWorkflowTests(unittest.TestCase):
+    def test_password_fields_have_show_hide_controls(self):
+        database = FakeFirestore()
+        client = build_test_app(database).test_client()
+
+        page = client.get("/login")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'data-password-toggle="loginPassword"', page.data)
+        self.assertIn(b'aria-label="Show password"', page.data)
+        self.assertIn(b"password-toggle.js", page.data)
+        service_worker = client.get("/static/service-worker.js")
+        self.assertIn(b"quality-sims-v13", service_worker.data)
+        self.assertIn(b"/static/js/password-toggle.js", service_worker.data)
+        service_worker.close()
+
     def test_admin_can_recreate_email_from_legacy_removed_user(self):
         database = FakeFirestore()
         database.collection("checklist_items").document("dummy").set(
