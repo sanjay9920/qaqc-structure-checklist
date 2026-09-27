@@ -935,6 +935,117 @@ body {
   padding: 0;
 }
 
+.scope-work-register,
+.scope-checklist-register {
+  overflow: hidden;
+  padding: 0;
+}
+
+.work-register-toolbar,
+.equipment-record-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 240px) auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 1rem;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--line);
+}
+
+.work-register-table {
+  min-width: 920px;
+}
+
+.work-register-table th {
+  color: #43536e;
+  background: #f8fafc;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.work-register-table td {
+  vertical-align: middle;
+  font-size: 0.82rem;
+}
+
+.work-register-table td > strong,
+.work-register-table td > small {
+  display: block;
+}
+
+.work-register-table td > small {
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.equipment-id-list,
+.checklist-unit-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.equipment-id-list span,
+.checklist-unit-statuses span,
+.record-state-badge,
+.status-metric {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0.18rem 0.38rem;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  color: #334155;
+  background: #f8fafc;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.status-metric + .status-metric {
+  margin-left: 0.2rem;
+}
+
+.equipment-state-completed,
+.record-state-completed,
+.status-complete {
+  color: #17653a !important;
+  background: #edf8f1 !important;
+  border-color: #b9dfc7 !important;
+}
+
+.equipment-state-in_progress,
+.record-state-in_progress,
+.status-progress {
+  color: #175a8a !important;
+  background: #eef7fc !important;
+  border-color: #b8d9ec !important;
+}
+
+.equipment-state-not_started,
+.record-state-not_started,
+.status-pending {
+  color: #8a5508 !important;
+  background: #fff8e8 !important;
+  border-color: #ebd29d !important;
+}
+
+.work-progress-cell {
+  min-width: 110px;
+}
+
+.work-progress-cell .progress {
+  height: 0.34rem;
+  margin-top: 0.3rem;
+}
+
+.checklist-unit-statuses {
+  padding-top: 0.5rem;
+  border-top: 1px solid #edf0f4;
+}
+
 .checklist-directory-toolbar {
   display: grid;
   grid-template-columns: minmax(240px, 1fr) minmax(160px, 220px) auto;
@@ -1149,6 +1260,15 @@ body {
 }
 
 @media (max-width: 700px) {
+  .work-register-toolbar,
+  .equipment-record-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .status-metric {
+    margin: 0.12rem 0.12rem 0.12rem 0;
+  }
+
   .checklist-directory-toolbar {
     grid-template-columns: 1fr;
   }

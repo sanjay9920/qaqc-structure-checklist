@@ -7,6 +7,12 @@
   const checklistDashboardResultCount = document.getElementById("checklistDashboardResultCount");
   const checklistDashboardEmpty = document.getElementById("checklistDashboardEmpty");
   const blockSummaryBody = document.getElementById("blockSummaryBody");
+  const equipmentFamilyBody = document.getElementById("equipmentFamilyBody");
+  const equipmentFamilySearch = document.getElementById("equipmentFamilySearch");
+  const equipmentFamilyStatus = document.getElementById("equipmentFamilyStatus");
+  const equipmentFamilyCount = document.getElementById("equipmentFamilyCount");
+  const scopeChecklistWorkBody = document.getElementById("scopeChecklistWorkBody");
+  const activeChecklistTypeCount = document.getElementById("activeChecklistTypeCount");
   const searchForm = document.querySelector(".search-row");
   const totalBlocksEl = document.getElementById("totalBlocks");
   const projectTotalStructuresEl = document.getElementById("projectTotalStructures");
@@ -211,6 +217,77 @@
     if (equipmentTotalPointsEl) equipmentTotalPointsEl.textContent = summary.total_points || 0;
   }
 
+  function renderEquipmentFamilies(items) {
+    if (!equipmentFamilyBody) return;
+    const rows = Array.isArray(items) ? items : [];
+    if (equipmentFamilyCount) equipmentFamilyCount.textContent = rows.length;
+    equipmentFamilyBody.innerHTML = rows.length ? rows.map(function (family) {
+      const equipment = Array.isArray(family.equipment) ? family.equipment : [];
+      const checklistTypes = Array.isArray(family.checklist_types) ? family.checklist_types : [];
+      const searchText = [family.family, ...checklistTypes, ...equipment.map((item) => item.label)].join(" ").toLowerCase();
+      const ids = equipment.map((item) => {
+        const label = family.block_count > 1 && item.block
+          ? `B${blockLabel(item.block)} / ${item.label}`
+          : item.label;
+        return `<span class="equipment-state-${escapeHtml(item.state)}" title="${item.completed_points || 0} completed, ${item.pending_points || 0} pending">${escapeHtml(label)} · ${item.progress || 0}%</span>`;
+      }).join("");
+      const more = family.additional_equipment_count
+        ? `<span>+${family.additional_equipment_count} more</span>`
+        : "";
+      return `
+        <tr data-family-search="${escapeHtml(searchText)}" data-pending="${family.pending_equipment || 0}" data-in-progress="${family.in_progress_equipment || 0}" data-completed="${family.completed_equipment || 0}">
+          <td><strong>${escapeHtml(family.family || "Unidentified")}</strong><div class="equipment-id-list">${ids}${more}</div></td>
+          <td><strong>${family.equipment_count || 0}</strong><small> unique</small></td>
+          <td><span class="status-metric status-complete">${family.completed_equipment || 0} done</span><span class="status-metric status-progress">${family.in_progress_equipment || 0} active</span><span class="status-metric status-pending">${family.not_started_equipment || 0} not started</span></td>
+          <td><strong>${family.total_records || 0}</strong><small>${family.completed_records || 0} done · ${family.pending_records || 0} pending</small></td>
+          <td><strong>${family.completed_points || 0} / ${family.total_points || 0}</strong><small>${family.pending_points || 0} pending · ${family.na_points || 0} N/A</small></td>
+          <td><strong>${family.block_count || 0} block${family.block_count === 1 ? "" : "s"}</strong><small>${family.checklist_type_count || 0} checklist type${family.checklist_type_count === 1 ? "" : "s"}</small></td>
+          <td class="work-progress-cell"><strong>${family.progress || 0}%</strong><div class="progress"><div class="progress-bar" style="width: ${family.progress || 0}%"></div></div></td>
+        </tr>`;
+    }).join("") : '<tr><td colspan="7" class="text-center text-muted py-4">No equipment or circuit records created in this scope.</td></tr>';
+    filterEquipmentFamilies();
+  }
+
+  function filterEquipmentFamilies() {
+    if (!equipmentFamilyBody) return;
+    const query = String(equipmentFamilySearch && equipmentFamilySearch.value || "").trim().toLowerCase();
+    const status = equipmentFamilyStatus ? equipmentFamilyStatus.value : "all";
+    equipmentFamilyBody.querySelectorAll("tr[data-family-search]").forEach(function (row) {
+      const matchesQuery = !query || String(row.dataset.familySearch || "").includes(query);
+      const matchesStatus = status === "all"
+        || (status === "pending" && Number(row.dataset.pending || 0) > 0)
+        || (status === "in_progress" && Number(row.dataset.inProgress || 0) > 0)
+        || (status === "completed" && Number(row.dataset.pending || 0) === 0 && Number(row.dataset.completed || 0) > 0);
+      row.classList.toggle("d-none", !(matchesQuery && matchesStatus));
+    });
+  }
+
+  function renderScopeChecklistWork(items, project, block) {
+    if (!scopeChecklistWorkBody) return;
+    const rows = (Array.isArray(items) ? items : []).filter((item) => Number(item.total_records || 0) > 0);
+    if (activeChecklistTypeCount) activeChecklistTypeCount.textContent = rows.length;
+    const columnCount = block ? 8 : 7;
+    scopeChecklistWorkBody.innerHTML = rows.length ? rows.map(function (item) {
+      const labels = Array.isArray(item.equipment_labels) ? item.equipment_labels : [];
+      const ids = labels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
+      const more = item.additional_equipment_count ? `<span>+${item.additional_equipment_count}</span>` : "";
+      const blocks = (Array.isArray(item.blocks) ? item.blocks : []).map(blockLabel).join(", ");
+      const action = block
+        ? `<td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/admin/equipment-dashboard/${encodeURIComponent(item.template_id || "")}?project=${encodeURIComponent(project || "")}&block=${encodeURIComponent(block)}" title="Open ${escapeHtml(item.name || "Checklist")} dashboard"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i><span class="visually-hidden">Open dashboard</span></a></td>`
+        : "";
+      return `<tr>
+        <td><strong>${escapeHtml(item.name || "Checklist")}</strong><small>${escapeHtml(item.format_no || "")}</small></td>
+        <td><strong>${item.block_count || 0}</strong><small>${escapeHtml(blocks || "-")}</small></td>
+        <td><strong>${item.total_records || 0}</strong><small>${item.completed_records || 0} done · ${item.pending_records || 0} pending</small></td>
+        <td><span class="status-metric status-progress">${item.in_progress_records || 0} active</span><span class="status-metric status-pending">${item.not_started_records || 0} not started</span></td>
+        <td><div class="equipment-id-list">${ids}${more}</div></td>
+        <td><strong>${item.completed_points || 0} / ${item.total_points || 0}</strong><small>${item.pending_points || 0} pending · ${item.na_points || 0} N/A</small></td>
+        <td class="work-progress-cell"><strong>${item.progress || 0}%</strong><div class="progress"><div class="progress-bar" style="width: ${item.progress || 0}%"></div></div></td>
+        ${action}
+      </tr>`;
+    }).join("") : `<tr><td colspan="${columnCount}" class="text-center text-muted py-4">No checklist work created in this scope.</td></tr>`;
+  }
+
   function renderBlockSummary(project, blocks) {
     if (!blockSummaryBody) return;
     const blockRows = Array.isArray(blocks) ? blocks : [];
@@ -348,6 +425,12 @@
         .join(" ")
         .toLowerCase();
       const missingIdentity = item.missing_identity_records || 0;
+      const recordStatuses = Array.isArray(item.record_statuses) ? item.record_statuses : [];
+      const unitStatuses = recordStatuses.length ? `
+        <div class="checklist-unit-statuses" aria-label="Equipment unit progress">
+          ${recordStatuses.map((unit) => `<span class="equipment-state-${escapeHtml(unit.state)}" title="${unit.completed_points || 0} completed, ${unit.pending_points || 0} pending">${escapeHtml(unit.label)} · ${unit.progress || 0}%</span>`).join("")}
+          ${item.additional_record_status_count ? `<span>+${item.additional_record_status_count} more</span>` : ""}
+        </div>` : "";
       return `
         <article
           class="checklist-dashboard-card"
@@ -389,6 +472,7 @@
             <span title="Vendors / Manufacturers"><i class="bi bi-building" aria-hidden="true"></i> ${vendorText}</span>
             ${specificationText ? `<span title="Specifications"><i class="bi bi-rulers" aria-hidden="true"></i> ${specificationText}</span>` : ""}
           </div>
+          ${unitStatuses}
         </article>
       `;
     }).join("");
@@ -435,6 +519,12 @@
     renderBlockSummary(payload.project || "", summary.blocks || []);
     renderDashboardScope(payload);
     renderEquipmentSummary(payload.equipment_summary || {});
+    renderEquipmentFamilies(payload.equipment_family_summaries || []);
+    renderScopeChecklistWork(
+      payload.equipment_template_summaries || [],
+      payload.project || "",
+      payload.block || ""
+    );
     renderEquipmentTemplateSummaries(
       payload.equipment_template_summaries || [],
       payload.project || "",
@@ -602,6 +692,12 @@
   }
   if (checklistDashboardStatus) {
     checklistDashboardStatus.addEventListener("change", filterChecklistDashboards);
+  }
+  if (equipmentFamilySearch) {
+    equipmentFamilySearch.addEventListener("input", filterEquipmentFamilies);
+  }
+  if (equipmentFamilyStatus) {
+    equipmentFamilyStatus.addEventListener("change", filterEquipmentFamilies);
   }
 
   [projectFilterInput, blockFilterInput].forEach((input) => {

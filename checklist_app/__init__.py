@@ -34,6 +34,7 @@ from .exports import (
 )
 from .equipment_catalog import get_equipment_catalog
 from .equipment_services import (
+    build_equipment_family_summaries,
     build_equipment_summary,
     build_equipment_template_summaries,
     create_equipment_checklist,
@@ -607,6 +608,9 @@ def create_app():
             "structures": structures,
             "equipment_records": equipment_records,
             "equipment_summary": build_equipment_summary(equipment_records),
+            "equipment_family_summaries": build_equipment_family_summaries(
+                equipment_records
+            ),
             "equipment_template_summaries": build_equipment_template_summaries(
                 get_equipment_catalog(), equipment_records
             ),
@@ -906,6 +910,7 @@ def create_app():
             "template": template,
             "records": records,
             "summary": build_equipment_summary(records),
+            "family_summaries": build_equipment_family_summaries(records),
             "next_record_number": get_next_equipment_record_number(records),
         }
 
@@ -1295,6 +1300,7 @@ def create_app():
             equipment_templates=get_equipment_catalog(),
             equipment_records=payload["equipment_records"],
             equipment_summary=payload["equipment_summary"],
+            equipment_family_summaries=payload["equipment_family_summaries"],
             equipment_template_summaries=payload[
                 "equipment_template_summaries"
             ],

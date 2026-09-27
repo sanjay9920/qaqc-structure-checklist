@@ -3,6 +3,9 @@
   const recordsBody = document.getElementById("equipmentTypeRecordsBody");
   const recordNumberInput = document.getElementById("equipment_record_number");
   const refreshStatus = document.getElementById("equipmentDashboardRefreshStatus");
+  const recordSearch = document.getElementById("equipmentRecordSearch");
+  const recordStatus = document.getElementById("equipmentRecordStatus");
+  const recordResultCount = document.getElementById("equipmentRecordResultCount");
   if (!config.apiUrl || !recordsBody) return;
 
   let refreshInFlight = false;
@@ -30,6 +33,10 @@
     setText("typeTotalRecords", values.total_records || 0);
     setText("typeCompletedRecords", values.completed_records || 0);
     setText("typePendingRecords", values.pending_records || 0);
+    setText("typeInProgressRecords", values.in_progress_records || 0);
+    setText("typeNotStartedRecords", values.not_started_records || 0);
+    setText("typeUniqueEquipment", values.unique_equipment_count || 0);
+    setText("typeMissingIdentity", values.missing_identity_records || 0);
     setText("typeCompletedPoints", values.completed_points || 0);
     setText("typePendingPoints", values.pending_points || 0);
     setText("typeTotalPointsA", values.total_points || 0);
@@ -41,12 +48,21 @@
     const counts = record.counts || {};
     const equipmentId = record.equipment_id || "";
     const progress = counts.progress || 0;
+    const state = counts.pending === 0 && counts.total > 0
+      ? "completed"
+      : (counts.completed > 0 ? "in_progress" : "not_started");
+    const statusLabel = state === "completed" ? "Complete" : (state === "in_progress" ? "In progress" : "Not started");
+    const searchText = [record.record_number, record.equipment_identification, record.specification, record.vendor_name]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
     return `
-      <tr>
+      <tr data-record-search="${escapeHtml(searchText)}" data-record-status="${state}" data-missing-id="${record.equipment_identification ? "0" : "1"}">
         <td>${escapeHtml(record.record_number || "")}</td>
         <td><strong>${escapeHtml(record.equipment_identification || "Not set")}</strong></td>
         <td>${escapeHtml(record.specification || "-")}</td>
         <td>${escapeHtml(record.vendor_name || "-")}</td>
+        <td><span class="record-state-badge record-state-${state}">${statusLabel}</span></td>
         <td>${counts.completed || 0} / ${counts.total || 0}</td>
         <td>${counts.pending || 0} / ${counts.total || 0}</td>
         <td>
@@ -66,12 +82,30 @@
     `;
   }
 
+  function filterRecords() {
+    const query = String(recordSearch && recordSearch.value || "").trim().toLowerCase();
+    const status = recordStatus ? recordStatus.value : "all";
+    const rows = Array.from(recordsBody.querySelectorAll("tr[data-record-search]"));
+    let shown = 0;
+    rows.forEach(function (row) {
+      const matchesQuery = !query || String(row.dataset.recordSearch || "").includes(query);
+      const matchesStatus = status === "all"
+        || (status === "missing_id" && row.dataset.missingId === "1")
+        || row.dataset.recordStatus === status;
+      const visible = matchesQuery && matchesStatus;
+      row.classList.toggle("d-none", !visible);
+      if (visible) shown += 1;
+    });
+    if (recordResultCount) recordResultCount.textContent = `${shown} shown`;
+  }
+
   function render(payload) {
     const records = Array.isArray(payload.records) ? payload.records : [];
     renderSummary(payload.summary || {});
     recordsBody.innerHTML = records.length
       ? records.map(renderRecord).join("")
-      : '<tr><td colspan="8" class="text-center text-muted py-4">No equipment created. Add the first record above.</td></tr>';
+      : '<tr><td colspan="9" class="text-center text-muted py-4">No equipment created. Add the first record above.</td></tr>';
+    filterRecords();
     if (recordNumberInput && document.activeElement !== recordNumberInput) {
       recordNumberInput.value = payload.next_record_number || "01";
     }
@@ -123,6 +157,9 @@
       if (button) button.disabled = false;
     }
   });
+
+  if (recordSearch) recordSearch.addEventListener("input", filterRecords);
+  if (recordStatus) recordStatus.addEventListener("change", filterRecords);
 
   setInterval(refresh, 30000);
   document.addEventListener("visibilitychange", function () {

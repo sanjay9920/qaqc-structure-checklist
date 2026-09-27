@@ -9,6 +9,7 @@ from openpyxl import load_workbook
 import checklist_app as app_module
 from checklist_app.equipment_catalog import get_equipment_catalog, get_equipment_template
 from checklist_app.equipment_services import (
+    build_equipment_family_summaries,
     build_equipment_template_summaries,
     create_equipment_checklist,
     delete_equipment_checklist,
@@ -223,6 +224,60 @@ def build_test_app(database, logged_in=False):
 
 
 class EquipmentWorkflowTests(unittest.TestCase):
+    def test_equipment_family_summary_tracks_unique_units_and_all_work(self):
+        records = [
+            {
+                "equipment_id": "record-1",
+                "equipment_identification": "SCB-32",
+                "template_id": "dc-cable-laying",
+                "template_name": "DC Cable Laying",
+                "block": "BLOCK-1",
+                "counts": {"total": 10, "completed": 10, "pending": 0, "na": 0, "progress": 100},
+            },
+            {
+                "equipment_id": "record-2",
+                "equipment_identification": "SCB-32",
+                "template_id": "dc-cable-termination",
+                "template_name": "DC Cable Termination",
+                "block": "BLOCK-1",
+                "counts": {"total": 10, "completed": 3, "pending": 7, "na": 0, "progress": 30},
+            },
+            {
+                "equipment_id": "record-3",
+                "equipment_identification": "IDT-1",
+                "template_id": "transformer-installation",
+                "template_name": "Transformer Installation",
+                "block": "BLOCK-2",
+                "counts": {"total": 18, "completed": 0, "pending": 18, "na": 0, "progress": 0},
+            },
+            {
+                "equipment_id": "record-4",
+                "equipment_identification": "SCB-32",
+                "template_id": "dc-cable-laying",
+                "template_name": "DC Cable Laying",
+                "block": "BLOCK-2",
+                "counts": {"total": 10, "completed": 10, "pending": 0, "na": 0, "progress": 100},
+            },
+        ]
+
+        summaries = build_equipment_family_summaries(records)
+        scb = next(item for item in summaries if item["family"] == "SCB")
+        idt = next(item for item in summaries if item["family"] == "IDT")
+
+        self.assertEqual(scb["equipment_count"], 2)
+        self.assertEqual(scb["completed_equipment"], 1)
+        self.assertEqual(scb["in_progress_equipment"], 1)
+        self.assertEqual(scb["pending_equipment"], 1)
+        self.assertEqual(scb["checklist_type_count"], 2)
+        self.assertEqual(scb["total_records"], 3)
+        self.assertEqual(scb["completed_points"], 23)
+        self.assertEqual(scb["pending_points"], 7)
+        self.assertEqual(scb["equipment"][0]["label"], "SCB-32")
+        self.assertEqual(scb["block_count"], 2)
+        self.assertEqual(idt["equipment_count"], 1)
+        self.assertEqual(idt["not_started_equipment"], 1)
+        self.assertEqual(idt["block_count"], 1)
+
     def test_password_fields_have_show_hide_controls(self):
         database = FakeFirestore()
         client = build_test_app(database).test_client()
@@ -234,7 +289,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b'aria-label="Show password"', page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/static/service-worker.js")
-        self.assertIn(b"quality-sims-v14", service_worker.data)
+        self.assertIn(b"quality-sims-v15", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         service_worker.close()
 
@@ -556,6 +611,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"not started",
             b"ID missing",
             b"Search checklist, equipment or vendor",
+            b"Equipment and circuit register",
+            b"Created checklist type status",
         ]:
             self.assertIn(expected, page.data)
 
@@ -595,6 +652,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Equipment checklists",
             b"Combined QA/QC work",
             b"Open Block Dashboard",
+            b"Equipment and circuit register",
+            b"Created checklist type status",
         ]:
             self.assertIn(expected, page.data)
         self.assertNotIn(b"Open block", page.data)
@@ -676,6 +735,10 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Polycab",
             b'value="02"',
             b"Vendor / Manufacturer",
+            b"In progress",
+            b"Not started",
+            b"Unique equipment",
+            b"Search equipment, specification or vendor",
         ]:
             self.assertIn(expected, page.data)
 

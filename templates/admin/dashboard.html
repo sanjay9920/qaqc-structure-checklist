@@ -388,6 +388,115 @@
     </section>
   {% endif %}
 
+  <section class="admin-panel scope-work-register mb-3" aria-labelledby="scopeWorkRegisterTitle">
+    <div class="equipment-table-heading">
+      <div>
+        <p class="eyebrow mb-1">{% if block %}Block {{ block | block_label }}{% else %}Entire project{% endif %}</p>
+        <h2 id="scopeWorkRegisterTitle" class="h5 mb-1">Equipment and circuit register</h2>
+        <p class="dashboard-scope mb-0">Unique equipment quantity, checklist state and point progress across all work.</p>
+      </div>
+      <span class="catalog-count"><span id="equipmentFamilyCount">{{ equipment_family_summaries | length }}</span> families</span>
+    </div>
+    <div class="work-register-toolbar">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+        <input id="equipmentFamilySearch" class="form-control" type="search" placeholder="Search SCB, IDT, equipment or checklist" aria-label="Search equipment register">
+      </div>
+      <select id="equipmentFamilyStatus" class="form-select form-select-sm" aria-label="Filter equipment register">
+        <option value="all">All equipment</option>
+        <option value="pending">Pending equipment</option>
+        <option value="in_progress">In progress</option>
+        <option value="completed">Fully completed</option>
+      </select>
+    </div>
+    <div class="table-responsive">
+      <table class="table work-register-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Equipment family / IDs</th>
+            <th>Quantity</th>
+            <th>Equipment status</th>
+            <th>Checklist records</th>
+            <th>QA/QC points</th>
+            <th>Coverage</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody id="equipmentFamilyBody">
+          {% for family in equipment_family_summaries %}
+            <tr data-family-search="{{ (family.family ~ ' ' ~ (family.checklist_types | join(' '))) | lower }}" data-pending="{{ family.pending_equipment }}" data-in-progress="{{ family.in_progress_equipment }}" data-completed="{{ family.completed_equipment }}">
+              <td>
+                <strong>{{ family.family }}</strong>
+                <div class="equipment-id-list">
+                  {% for equipment in family.equipment %}<span class="equipment-state-{{ equipment.state }}">{% if family.block_count > 1 %}B{{ equipment.block | block_label }} / {% endif %}{{ equipment.label }}</span>{% endfor %}
+                  {% if family.additional_equipment_count %}<span>+{{ family.additional_equipment_count }}</span>{% endif %}
+                </div>
+              </td>
+              <td><strong>{{ family.equipment_count }}</strong><small> unique</small></td>
+              <td>
+                <span class="status-metric status-complete">{{ family.completed_equipment }} done</span>
+                <span class="status-metric status-progress">{{ family.in_progress_equipment }} active</span>
+                <span class="status-metric status-pending">{{ family.not_started_equipment }} not started</span>
+              </td>
+              <td><strong>{{ family.total_records }}</strong><small>{{ family.completed_records }} done · {{ family.pending_records }} pending</small></td>
+              <td><strong>{{ family.completed_points }} / {{ family.total_points }}</strong><small>{{ family.pending_points }} pending · {{ family.na_points }} N/A</small></td>
+              <td><strong>{{ family.block_count }} block{% if family.block_count != 1 %}s{% endif %}</strong><small>{{ family.checklist_type_count }} checklist type{% if family.checklist_type_count != 1 %}s{% endif %}</small></td>
+              <td class="work-progress-cell">
+                <strong>{{ family.progress }}%</strong>
+                <div class="progress"><div class="progress-bar" style="width: {{ family.progress }}%"></div></div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-4">No equipment or circuit records created in this scope.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="admin-panel scope-checklist-register mb-3" aria-labelledby="scopeChecklistRegisterTitle">
+    <div class="equipment-table-heading">
+      <div>
+        <p class="eyebrow mb-1">All checklist work</p>
+        <h2 id="scopeChecklistRegisterTitle" class="h5 mb-1">Created checklist type status</h2>
+        <p class="dashboard-scope mb-0">Every active checklist type with records, equipment and point-level progress.</p>
+      </div>
+      <span class="catalog-count"><span id="activeChecklistTypeCount">{{ equipment_summary.active_template_count }}</span> active types</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table work-register-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Checklist</th>
+            <th>Blocks</th>
+            <th>Records</th>
+            <th>Work state</th>
+            <th>Equipment / Circuit IDs</th>
+            <th>Points</th>
+            <th>Progress</th>
+            {% if block %}<th class="text-end">Action</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody id="scopeChecklistWorkBody">
+          {% for item in equipment_template_summaries if item.total_records %}
+            <tr>
+              <td><strong>{{ item.name }}</strong><small>{{ item.format_no }}</small></td>
+              <td><strong>{{ item.block_count }}</strong><small>{{ item.blocks | map('block_label') | join(', ') }}</small></td>
+              <td><strong>{{ item.total_records }}</strong><small>{{ item.completed_records }} done · {{ item.pending_records }} pending</small></td>
+              <td><span class="status-metric status-progress">{{ item.in_progress_records }} active</span><span class="status-metric status-pending">{{ item.not_started_records }} not started</span></td>
+              <td><div class="equipment-id-list">{% for label in item.equipment_labels %}<span>{{ label }}</span>{% endfor %}{% if item.additional_equipment_count %}<span>+{{ item.additional_equipment_count }}</span>{% endif %}</div></td>
+              <td><strong>{{ item.completed_points }} / {{ item.total_points }}</strong><small>{{ item.pending_points }} pending · {{ item.na_points }} N/A</small></td>
+              <td class="work-progress-cell"><strong>{{ item.progress }}%</strong><div class="progress"><div class="progress-bar" style="width: {{ item.progress }}%"></div></div></td>
+              {% if block %}<td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_equipment_dashboard', template_id=item.template_id, project=project, block=block) }}" title="Open {{ item.name }} dashboard"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i><span class="visually-hidden">Open dashboard</span></a></td>{% endif %}
+            </tr>
+          {% else %}
+            <tr><td colspan="{% if block %}8{% else %}7{% endif %}" class="text-center text-muted py-4">No checklist work created in this scope.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   {% if bulk_start and bulk_end %}
     <div class="alert alert-success d-flex align-items-center justify-content-between gap-3 flex-wrap">
       {% if bulk_project and bulk_block %}
@@ -534,6 +643,14 @@
                 </span>
               {% endif %}
             </div>
+            {% if item.record_statuses %}
+              <div class="checklist-unit-statuses" aria-label="Equipment unit progress">
+                {% for unit in item.record_statuses %}
+                  <span class="equipment-state-{{ unit.state }}" title="{{ unit.completed_points }} completed, {{ unit.pending_points }} pending">{{ unit.label }} · {{ unit.progress }}%</span>
+                {% endfor %}
+                {% if item.additional_record_status_count %}<span>+{{ item.additional_record_status_count }} more</span>{% endif %}
+              </div>
+            {% endif %}
           </article>
         {% endfor %}
       </div>
@@ -650,5 +767,5 @@
     block: {{ block | tojson }}
   };
 </script>
-<script src="{{ url_for('static', filename='js/admin_dashboard.js', v='13') }}"></script>
+<script src="{{ url_for('static', filename='js/admin_dashboard.js', v='14') }}"></script>
 {% endblock %}

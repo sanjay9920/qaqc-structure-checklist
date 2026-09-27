@@ -378,16 +378,161 @@ def build_equipment_summary(records):
     )
     na_points = sum((record.get("counts") or {}).get("na", 0) for record in records)
     progress = round(completed_points * 100 / total_points) if total_points else 0
+    in_progress_records = sum(
+        1
+        for record in records
+        if (record.get("counts") or {}).get("completed", 0) > 0
+        and (record.get("counts") or {}).get("pending", 0) > 0
+    )
+    not_started_records = sum(
+        1
+        for record in records
+        if (record.get("counts") or {}).get("completed", 0) == 0
+        and (record.get("counts") or {}).get("pending", 0) > 0
+    )
+    identified_records = sum(
+        1
+        for record in records
+        if str(record.get("equipment_identification") or "").strip()
+    )
+    unique_equipment = {
+        (
+            record.get("block", ""),
+            str(record.get("equipment_identification") or "").strip().upper(),
+        )
+        for record in records
+        if str(record.get("equipment_identification") or "").strip()
+    }
     return {
         "total_records": total_records,
         "completed_records": completed_records,
         "pending_records": total_records - completed_records,
+        "in_progress_records": in_progress_records,
+        "not_started_records": not_started_records,
+        "identified_records": identified_records,
+        "missing_identity_records": total_records - identified_records,
+        "unique_equipment_count": len(unique_equipment),
+        "active_template_count": len(
+            {
+                record.get("template_id")
+                for record in records
+                if record.get("template_id")
+            }
+        ),
         "total_points": total_points,
         "completed_points": completed_points,
         "pending_points": pending_points,
         "na_points": na_points,
         "progress": progress,
     }
+
+
+def _equipment_family(equipment_identification):
+    label = re.sub(r"\s+", " ", str(equipment_identification or "").strip())
+    if not label:
+        return "Unidentified"
+    family = re.sub(r"[\s_\-/]*\d+[A-Z]?$", "", label, flags=re.IGNORECASE)
+    return (family.strip(" -_/") or label).upper()
+
+
+def _record_state(record):
+    counts = record.get("counts") or {}
+    pending = counts.get("pending", 0)
+    completed = counts.get("completed", 0)
+    if pending == 0 and counts.get("total", 0) > 0:
+        return "completed"
+    if completed > 0:
+        return "in_progress"
+    return "not_started"
+
+
+def build_equipment_family_summaries(records):
+    """Group all checklist work by physical equipment/circuit family and identity."""
+    families = {}
+    for record in records or []:
+        identity = str(record.get("equipment_identification") or "").strip()
+        family_name = _equipment_family(identity)
+        family = families.setdefault(
+            family_name,
+            {"records": [], "equipment": {}, "blocks": set(), "templates": {}},
+        )
+        family["records"].append(record)
+        if record.get("block"):
+            family["blocks"].add(record["block"])
+        if record.get("template_id"):
+            family["templates"][record["template_id"]] = record.get(
+                "template_name", record["template_id"]
+            )
+
+        identity_key = (
+            f"{record.get('block', '')}|{identity.upper()}"
+            if identity
+            else f"__MISSING__{record.get('equipment_id', len(family['records']))}"
+        )
+        equipment = family["equipment"].setdefault(
+            identity_key,
+            {
+                "label": identity or "ID not set",
+                "block": record.get("block", ""),
+                "records": [],
+            },
+        )
+        equipment["records"].append(record)
+
+    summaries = []
+    for family_name, family in families.items():
+        summary = build_equipment_summary(family["records"])
+        equipment_rows = []
+        for equipment in family["equipment"].values():
+            equipment_summary = build_equipment_summary(equipment["records"])
+            if equipment_summary["pending_records"] == 0:
+                state = "completed"
+            elif equipment_summary["completed_points"] > 0:
+                state = "in_progress"
+            else:
+                state = "not_started"
+            equipment_rows.append(
+                {
+                    "label": equipment["label"],
+                    "block": equipment["block"],
+                    "state": state,
+                    "checklist_records": equipment_summary["total_records"],
+                    "completed_points": equipment_summary["completed_points"],
+                    "pending_points": equipment_summary["pending_points"],
+                    "total_points": equipment_summary["total_points"],
+                    "progress": equipment_summary["progress"],
+                }
+            )
+        equipment_rows.sort(key=lambda item: item["label"])
+        summaries.append(
+            {
+                "family": family_name,
+                "equipment_count": len(equipment_rows),
+                "completed_equipment": sum(
+                    1 for item in equipment_rows if item["state"] == "completed"
+                ),
+                "in_progress_equipment": sum(
+                    1 for item in equipment_rows if item["state"] == "in_progress"
+                ),
+                "not_started_equipment": sum(
+                    1 for item in equipment_rows if item["state"] == "not_started"
+                ),
+                "pending_equipment": sum(
+                    1 for item in equipment_rows if item["state"] != "completed"
+                ),
+                "block_count": len(family["blocks"]),
+                "blocks": sorted(family["blocks"]),
+                "checklist_type_count": len(family["templates"]),
+                "checklist_types": sorted(family["templates"].values()),
+                "equipment": equipment_rows[:8],
+                "additional_equipment_count": max(0, len(equipment_rows) - 8),
+                **summary,
+            }
+        )
+    return sorted(
+        summaries,
+        key=lambda item: (item["family"] == "Unidentified", item["family"]),
+    )
 
 
 def get_next_equipment_record_number(records):
@@ -412,18 +557,6 @@ def build_equipment_template_summaries(templates, records):
     for template in templates or []:
         template_records = records_by_template.get(template.get("template_id", ""), [])
         summary = build_equipment_summary(template_records)
-        in_progress_records = sum(
-            1
-            for record in template_records
-            if (record.get("counts") or {}).get("completed", 0) > 0
-            and (record.get("counts") or {}).get("pending", 0) > 0
-        )
-        not_started_records = sum(
-            1
-            for record in template_records
-            if (record.get("counts") or {}).get("completed", 0) == 0
-            and (record.get("counts") or {}).get("pending", 0) > 0
-        )
         equipment_labels = list(
             dict.fromkeys(
                 str(record.get("equipment_identification") or "").strip()
@@ -445,28 +578,45 @@ def build_equipment_template_summaries(templates, records):
                 if str(record.get("specification") or "").strip()
             )
         )
+        blocks = sorted(
+            {
+                record.get("block")
+                for record in template_records
+                if record.get("block")
+            }
+        )
+        record_statuses = []
+        for record in template_records:
+            counts = record.get("counts") or {}
+            record_statuses.append(
+                {
+                    "equipment_id": record.get("equipment_id", ""),
+                    "record_number": record.get("record_number", ""),
+                    "label": record.get("equipment_identification") or "ID not set",
+                    "block": record.get("block", ""),
+                    "state": _record_state(record),
+                    "completed_points": counts.get("completed", 0),
+                    "pending_points": counts.get("pending", 0),
+                    "total_points": counts.get("total", 0),
+                    "progress": counts.get("progress", 0),
+                    "vendor_name": record.get("vendor_name", ""),
+                    "specification": record.get("specification", ""),
+                }
+            )
         summaries.append(
             {
                 **template,
                 **summary,
-                "in_progress_records": in_progress_records,
-                "not_started_records": not_started_records,
-                "identified_records": sum(
-                    1
-                    for record in template_records
-                    if str(record.get("equipment_identification") or "").strip()
-                ),
-                "missing_identity_records": sum(
-                    1
-                    for record in template_records
-                    if not str(record.get("equipment_identification") or "").strip()
-                ),
                 "equipment_labels": equipment_labels[:3],
                 "additional_equipment_count": max(0, len(equipment_labels) - 3),
                 "vendor_names": vendor_names[:2],
                 "additional_vendor_count": max(0, len(vendor_names) - 2),
                 "specifications": specifications[:2],
                 "additional_specification_count": max(0, len(specifications) - 2),
+                "blocks": blocks,
+                "block_count": len(blocks),
+                "record_statuses": record_statuses[:8],
+                "additional_record_status_count": max(0, len(record_statuses) - 8),
                 "next_record_number": get_next_equipment_record_number(
                     template_records
                 ),
