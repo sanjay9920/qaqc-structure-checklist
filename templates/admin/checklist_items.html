@@ -7,7 +7,7 @@
   <div>
     <p class="eyebrow mb-1">Quality Department App</p>
     <h1 class="h3 mb-0">Checklist items</h1>
-    <p class="dashboard-tagline mb-0">Standard inspection points used for structure quality checks.</p>
+    <p class="dashboard-tagline mb-0">Standard inspection points used for structure quality checks. Deleted items cannot be recovered.</p>
   </div>
 </div>
 
@@ -53,14 +53,17 @@
             {% endif %}
           </td>
           <td class="text-end">
-            {% if item.active %}
-              <form action="{{ url_for('admin_remove_checklist_item', item_id=item.item_id) }}" method="post" class="d-inline">
-                <button class="btn btn-sm btn-outline-danger" type="submit">
-                  <i class="bi bi-trash" aria-hidden="true"></i>
-                  Remove
-                </button>
-              </form>
-            {% endif %}
+            <form
+              action="{{ url_for('admin_remove_checklist_item', item_id=item.item_id) }}"
+              method="post"
+              class="d-inline"
+              onsubmit="return confirm('Permanently delete {{ item.label | e }} from all structures and history? This cannot be undone.')"
+            >
+              <button class="btn btn-sm btn-danger" type="submit">
+                <i class="bi bi-trash3" aria-hidden="true"></i>
+                Delete permanently
+              </button>
+            </form>
           </td>
         </tr>
       {% endfor %}

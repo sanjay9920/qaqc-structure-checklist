@@ -57,7 +57,7 @@ from .services import (
     create_project,
     create_structure,
     create_structures_bulk,
-    deactivate_checklist_item,
+    delete_checklist_item,
     delete_project,
     delete_structure,
     display_project_name,
@@ -1723,9 +1723,16 @@ def create_app():
     @app.post("/admin/checklist-items/<item_id>/remove")
     @admin_required
     def admin_remove_checklist_item(item_id):
-        deactivate_checklist_item(db(), item_id, g.user["email"])
+        deleted = delete_checklist_item(db(), item_id, g.user["email"])
+        if not deleted:
+            flash("Checklist item not found or already deleted.", "warning")
+            return redirect(url_for("admin_checklist_items"))
         clear_dashboard_cache()
-        flash("Checklist item removed from active checklists.", "success")
+        flash(
+            f"{deleted['label']} permanently deleted from "
+            f"{deleted['updated_structures']} structures.",
+            "success",
+        )
         return redirect(url_for("admin_checklist_items"))
 
     @app.post("/admin/checklist-items/<item_id>/rename")

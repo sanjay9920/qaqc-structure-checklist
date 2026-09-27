@@ -111,9 +111,15 @@ def now_utc():
 
 
 def ensure_default_checklist_items(db, created_by):
+    settings_ref = db.collection("app_settings").document("checklist")
+    settings_snap = settings_ref.get()
     docs = list(db.collection("checklist_items").limit(1).stream())
     if docs:
+        if not settings_snap.exists:
+            settings_ref.set({"initialized": True, "updated_at": now_utc()})
         return get_active_checklist_items(db)
+    if settings_snap.exists and (settings_snap.to_dict() or {}).get("initialized"):
+        return []
 
     batch = db.batch()
     for index, label in enumerate(DEFAULT_CHECKLIST_ITEMS, start=1):
@@ -130,6 +136,7 @@ def ensure_default_checklist_items(db, created_by):
                 "created_by": created_by,
             },
         )
+    batch.set(settings_ref, {"initialized": True, "updated_at": now_utc()})
     batch.commit()
     return get_active_checklist_items(db)
 
@@ -1195,14 +1202,65 @@ def add_checklist_item(db, label, created_by):
     return item_id
 
 
-def deactivate_checklist_item(db, item_id, updated_by):
-    db.collection("checklist_items").document(item_id).update(
-        {
-            "active": False,
-            "updated_at": now_utc(),
-            "updated_by": updated_by,
-        }
-    )
+def delete_checklist_item(db, item_id, updated_by):
+    item_id = (item_id or "").strip()
+    item_ref = db.collection("checklist_items").document(item_id)
+    item_snap = item_ref.get()
+    if not item_snap.exists:
+        return None
+
+    item_data = item_snap.to_dict() or {}
+    timestamp = now_utc()
+    settings_ref = db.collection("app_settings").document("checklist")
+    settings_snap = settings_ref.get()
+    settings_data = settings_snap.to_dict() or {}
+    settings_data.update({"initialized": True, "updated_at": timestamp})
+    settings_ref.set(settings_data)
+    batch = db.batch()
+    batch_size = 0
+    updated_structures = 0
+    deleted_history = 0
+
+    def commit_batch():
+        nonlocal batch, batch_size
+        if batch_size:
+            batch.commit()
+            batch = db.batch()
+            batch_size = 0
+
+    for structure in db.collection("structures").stream():
+        data = structure.to_dict() or {}
+        checklist = data.get("checklist", {}) or {}
+        if item_id not in checklist:
+            continue
+        checklist.pop(item_id, None)
+        data["checklist"] = checklist
+        data["updated_at"] = timestamp
+        data["updated_by"] = updated_by
+        batch.set(structure.reference, data)
+        batch_size += 1
+        updated_structures += 1
+        if batch_size >= 450:
+            commit_batch()
+
+    for history in db.collection("history").where(
+        filter=firestore.FieldFilter("item_id", "==", item_id)
+    ).stream():
+        batch.delete(history.reference)
+        batch_size += 1
+        deleted_history += 1
+        if batch_size >= 450:
+            commit_batch()
+
+    batch.delete(item_ref)
+    batch_size += 1
+    commit_batch()
+    return {
+        "item_id": item_id,
+        "label": item_data.get("label", item_id),
+        "updated_structures": updated_structures,
+        "deleted_history": deleted_history,
+    }
 
 
 def update_checklist_item_label(db, item_id, label, updated_by):

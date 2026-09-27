@@ -20,7 +20,11 @@ from checklist_app.equipment_services import (
     update_equipment_status,
 )
 from checklist_app.exports import export_all_xlsx, export_equipment_csv
-from checklist_app.services import delete_project
+from checklist_app.services import (
+    delete_checklist_item,
+    delete_project,
+    get_active_checklist_items,
+)
 
 
 class FakeSnapshot:
@@ -217,6 +221,49 @@ def build_test_app(database, logged_in=False):
 
 
 class EquipmentWorkflowTests(unittest.TestCase):
+    def test_checklist_item_delete_is_permanent_and_cascades(self):
+        database = FakeFirestore()
+        database.collection("checklist_items").document("alignment").set(
+            {"label": "Alignment checked", "order": 10, "active": False}
+        )
+        database.collection("structures").document("STR-0001").set(
+            {
+                "structure_id": "STR-0001",
+                "checklist": {
+                    "alignment": {"label": "Alignment checked", "status": "completed"},
+                    "earthing": {"label": "Earthing completed", "status": "pending"},
+                },
+            }
+        )
+        database.collection("history").document("history-1").set(
+            {"item_id": "alignment", "structure_id": "STR-0001"}
+        )
+
+        deleted = delete_checklist_item(database, "alignment", "admin@example.com")
+
+        self.assertEqual(deleted["updated_structures"], 1)
+        self.assertEqual(deleted["deleted_history"], 1)
+        self.assertFalse(
+            database.collection("checklist_items").document("alignment").get().exists
+        )
+        structure = (
+            database.collection("structures").document("STR-0001").get().to_dict()
+        )
+        self.assertNotIn("alignment", structure["checklist"])
+        self.assertIn("earthing", structure["checklist"])
+        self.assertEqual(len(database.data["history"]), 0)
+
+    def test_deleted_checklist_items_are_not_seeded_again(self):
+        database = FakeFirestore()
+        database.collection("checklist_items").document("only-item").set(
+            {"label": "Only item", "order": 10, "active": True}
+        )
+
+        delete_checklist_item(database, "only-item", "admin@example.com")
+
+        self.assertEqual(get_active_checklist_items(database), [])
+        self.assertEqual(len(database.data["checklist_items"]), 0)
+
     def test_create_update_export_and_delete(self):
         database, user, record, _transformer = build_fixture()
         self.assertEqual(record["counts"]["completed"], 1)
