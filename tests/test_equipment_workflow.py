@@ -289,7 +289,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b'aria-label="Show password"', page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/static/service-worker.js")
-        self.assertIn(b"quality-sims-v15", service_worker.data)
+        self.assertIn(b"quality-sims-v16", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         service_worker.close()
 
@@ -630,6 +630,9 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Search checklist, equipment or vendor",
             b"Equipment and circuit register",
             b"Created checklist type status",
+            b"compact-tracking-grid compact-scroll-area",
+            b"mini-progress-ring",
+            b"checklist-dashboard-grid",
         ]:
             self.assertIn(expected, page.data)
 
@@ -671,6 +674,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Open Block Dashboard",
             b"Equipment and circuit register",
             b"Created checklist type status",
+            b"block-portfolio-grid",
+            b"mini-progress-ring",
         ]:
             self.assertIn(expected, page.data)
         self.assertNotIn(b"Open block", page.data)
@@ -756,6 +761,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Not started",
             b"Unique equipment",
             b"Search equipment, specification or vendor",
+            b"summary-grid equipment-type-summary",
         ]:
             self.assertIn(expected, page.data)
 

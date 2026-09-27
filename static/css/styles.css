@@ -765,13 +765,16 @@ body {
 
 .block-portfolio-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   gap: 0.75rem;
+  max-height: 520px;
+  padding-right: 0.2rem;
+  overflow-y: auto;
 }
 
 .block-work-card {
   min-width: 0;
-  padding: 0.9rem;
+  padding: 0.7rem;
   border: 1px solid var(--line);
   border-top: 3px solid #2e5bd7;
   border-radius: 8px;
@@ -796,7 +799,7 @@ body {
 .block-work-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 0.75rem 0;
+  margin: 0.55rem 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
@@ -804,7 +807,7 @@ body {
 
 .block-work-kpis > div {
   min-width: 0;
-  padding: 0.55rem;
+  padding: 0.42rem;
   border-right: 1px solid var(--line);
   text-align: center;
 }
@@ -833,7 +836,7 @@ body {
 }
 
 .block-work-stream {
-  padding: 0.65rem 0;
+  padding: 0.45rem 0;
   border-top: 1px solid var(--line);
 }
 
@@ -854,8 +857,8 @@ body {
 }
 
 .block-work-total {
-  margin: 0.15rem 0 0.75rem;
-  padding: 0.65rem;
+  margin: 0.1rem 0 0.55rem;
+  padding: 0.45rem;
   background: #f4f7fb;
   border-radius: 8px;
   font-size: 0.75rem;
@@ -939,6 +942,173 @@ body {
 .scope-checklist-register {
   overflow: hidden;
   padding: 0;
+}
+
+.scope-work-register .equipment-table-heading,
+.scope-checklist-register .equipment-table-heading {
+  padding: 0.7rem 0.8rem;
+}
+
+.compact-tracking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.55rem;
+  padding: 0.65rem;
+}
+
+.compact-scroll-area {
+  max-height: 330px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.compact-tracking-card {
+  min-width: 0;
+  min-height: 148px;
+  padding: 0.6rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.compact-tracking-head,
+.compact-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.compact-tracking-title {
+  min-width: 0;
+}
+
+.compact-tracking-title strong,
+.compact-tracking-title small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compact-tracking-title strong {
+  color: #172033;
+  font-size: 0.83rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.compact-tracking-title small {
+  margin-top: 0.14rem;
+  color: var(--muted);
+  font-size: 0.63rem;
+  white-space: nowrap;
+}
+
+.mini-progress-ring {
+  position: relative;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(#2e5bd7 calc(var(--progress) * 1%), #e6eaf1 0);
+}
+
+.mini-progress-ring::before {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  content: "";
+}
+
+.mini-progress-ring span {
+  position: relative;
+  color: #17346d;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.compact-status-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin-top: 0.45rem;
+}
+
+.compact-status-row span {
+  display: block;
+  min-width: 0;
+  padding: 0.22rem 0.15rem;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  font-size: 0.58rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.compact-status-row b {
+  font-size: 0.72rem;
+}
+
+.compact-meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  color: #526078;
+  font-size: 0.61rem;
+}
+
+.compact-id-line {
+  display: flex;
+  min-height: 22px;
+  gap: 0.22rem;
+  margin-top: 0.38rem;
+  overflow: hidden;
+}
+
+.compact-id-line span {
+  display: inline-flex;
+  max-width: 125px;
+  padding: 0.14rem 0.3rem;
+  overflow: hidden;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  color: #334155;
+  background: #f8fafc;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-progress-bar {
+  width: 100%;
+  height: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.compact-card-footer .compact-progress-bar {
+  margin-top: 0.4rem;
+}
+
+.compact-open-button {
+  display: inline-grid;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  flex: 0 0 27px;
+  place-items: center;
+}
+
+.compact-empty-state {
+  grid-column: 1 / -1;
+  padding: 1.2rem;
+  color: var(--muted);
+  text-align: center;
 }
 
 .work-register-toolbar,
@@ -1065,9 +1235,12 @@ body {
 
 .checklist-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.7rem;
+  max-height: 470px;
   padding: 0.8rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .checklist-dashboard-card {
@@ -1255,8 +1428,24 @@ body {
 
 @media (max-width: 1100px) {
   .checklist-dashboard-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+.equipment-type-summary {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.equipment-type-summary .summary-tile {
+  padding: 0.65rem;
+}
+
+.equipment-type-summary .summary-label {
+  font-size: 0.66rem;
+}
+
+.equipment-type-summary .summary-tile strong {
+  font-size: 1.05rem;
 }
 
 @media (max-width: 700px) {
@@ -1274,8 +1463,31 @@ body {
   }
 
   .checklist-dashboard-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 430px;
     padding: 0.65rem;
+  }
+
+  .compact-tracking-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0.5rem;
+  }
+
+  .compact-scroll-area {
+    max-height: 360px;
+  }
+
+  .compact-tracking-card {
+    min-height: 142px;
+    padding: 0.5rem;
+  }
+
+  .compact-meta-row span:last-child {
+    display: none;
+  }
+
+  .equipment-type-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .checklist-directory-count {
@@ -1318,6 +1530,13 @@ body {
 
   .block-work-kpis > div:nth-child(-n + 2) {
     border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 430px) {
+  .compact-tracking-grid,
+  .checklist-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
