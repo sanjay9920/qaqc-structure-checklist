@@ -931,7 +931,6 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Equipment checklists",
             b"Combined QA/QC work",
             b"Open Block Dashboard",
-            b"Equipment, asset and circuit register",
             b"Created checklist type status",
             b"block-portfolio-grid",
             b"mini-progress-ring",
@@ -941,6 +940,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
             self.assertIn(expected, page.data)
         self.assertNotIn(b"Open block", page.data)
         self.assertNotIn(b"Block detail", page.data)
+        self.assertNotIn(b"Equipment, asset and circuit register", page.data)
         self.assertIn(b"B1 / SCB-1", page.data)
 
         payload = client.get(
