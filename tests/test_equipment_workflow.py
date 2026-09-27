@@ -430,6 +430,10 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Checklist dashboards",
             b"44 dashboards",
             b"Open Dashboard",
+            b"in progress",
+            b"not started",
+            b"ID missing",
+            b"Search checklist, equipment or vendor",
         ]:
             self.assertIn(expected, page.data)
 
@@ -439,6 +443,17 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(payload["equipment_summary"]["total_records"], 2)
         self.assertEqual(payload["equipment_records"][0]["equipment_id"], record["equipment_id"])
         self.assertEqual(len(payload["equipment_template_summaries"]), 44)
+        cable_summary = next(
+            item
+            for item in payload["equipment_template_summaries"]
+            if item["template_id"] == "cable-laying"
+        )
+        self.assertEqual(cable_summary["in_progress_records"], 1)
+        self.assertEqual(cable_summary["not_started_records"], 0)
+        self.assertEqual(cable_summary["identified_records"], 1)
+        self.assertEqual(cable_summary["missing_identity_records"], 0)
+        self.assertEqual(cable_summary["equipment_labels"], ["SCB-1"])
+        self.assertEqual(cable_summary["vendor_names"], ["Polycab"])
 
     def test_checklist_dashboard_supports_multiple_equipment_records(self):
         database, _user, record, _transformer = build_fixture()

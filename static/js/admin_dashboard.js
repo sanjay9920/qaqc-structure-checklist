@@ -3,6 +3,10 @@
   const tableBody = document.getElementById("structuresTableBody");
   const equipmentTableBody = document.getElementById("equipmentTableBody");
   const equipmentDashboardTableBody = document.getElementById("equipmentDashboardTableBody");
+  const checklistDashboardSearch = document.getElementById("checklistDashboardSearch");
+  const checklistDashboardStatus = document.getElementById("checklistDashboardStatus");
+  const checklistDashboardResultCount = document.getElementById("checklistDashboardResultCount");
+  const checklistDashboardEmpty = document.getElementById("checklistDashboardEmpty");
   const blockSummaryBody = document.getElementById("blockSummaryBody");
   const searchForm = document.querySelector(".search-row");
   const totalBlocksEl = document.getElementById("totalBlocks");
@@ -374,25 +378,95 @@
     equipmentDashboardTableBody.innerHTML = rows.map(function (item) {
       const progress = item.progress || 0;
       const dashboardUrl = `/admin/equipment-dashboard/${encodeURIComponent(item.template_id || "")}?project=${encodeURIComponent(project || "")}&block=${encodeURIComponent(block || "")}`;
+      const equipmentLabels = Array.isArray(item.equipment_labels) ? item.equipment_labels : [];
+      const vendorNames = Array.isArray(item.vendor_names) ? item.vendor_names : [];
+      const equipmentText = equipmentLabels.length
+        ? `${equipmentLabels.map(escapeHtml).join(", ")}${item.additional_equipment_count ? ` +${item.additional_equipment_count}` : ""}`
+        : "No equipment ID";
+      const vendorText = vendorNames.length
+        ? `${vendorNames.map(escapeHtml).join(", ")}${item.additional_vendor_count ? ` +${item.additional_vendor_count}` : ""}`
+        : "No vendor";
+      const searchText = [item.name, item.format_no, ...equipmentLabels, ...vendorNames]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const missingIdentity = item.missing_identity_records || 0;
       return `
-        <tr>
-          <td>
-            <strong>${escapeHtml(item.name || "Checklist")}</strong>
-            <small class="d-block text-muted">${escapeHtml(item.format_no || "")} · ${item.point_count || 0} points</small>
-          </td>
-          <td>${item.total_records || 0}</td>
-          <td>${item.completed_records || 0}</td>
-          <td>${item.pending_records || 0}</td>
-          <td>
-            <div class="progress table-progress"><div class="progress-bar" style="width: ${progress}%"></div></div>
-            <span class="small text-muted">${item.completed_points || 0} / ${item.total_points || 0} points · ${progress}%</span>
-          </td>
-          <td class="text-end">
-            <a class="btn btn-sm btn-outline-primary" href="${dashboardUrl}"><i class="bi bi-speedometer2" aria-hidden="true"></i> Dashboard</a>
-          </td>
-        </tr>
+        <article
+          class="checklist-dashboard-card"
+          data-search="${escapeHtml(searchText)}"
+          data-total-records="${item.total_records || 0}"
+          data-pending-records="${item.pending_records || 0}"
+          data-completed-records="${item.completed_records || 0}"
+        >
+          <div class="checklist-card-header">
+            <div class="checklist-card-title">
+              <strong>${escapeHtml(item.name || "Checklist")}</strong>
+              <small>${escapeHtml(item.format_no || "")} · ${item.point_count || 0} points/form</small>
+            </div>
+            <a class="btn btn-sm btn-outline-primary checklist-open-icon" href="${dashboardUrl}" title="Open ${escapeHtml(item.name || "Checklist")} dashboard" aria-label="Open ${escapeHtml(item.name || "Checklist")} dashboard">
+              <i class="bi bi-arrow-up-right-square" aria-hidden="true"></i>
+            </a>
+          </div>
+          <div class="checklist-record-stats" aria-label="Equipment record status">
+            <span title="Total equipment records"><i class="bi bi-stack" aria-hidden="true"></i><b>${item.total_records || 0}</b><small>Total</small></span>
+            <span class="is-complete" title="Completed equipment records"><i class="bi bi-check-circle" aria-hidden="true"></i><b>${item.completed_records || 0}</b><small>Done</small></span>
+            <span class="is-pending" title="Pending equipment records"><i class="bi bi-clock" aria-hidden="true"></i><b>${item.pending_records || 0}</b><small>Pending</small></span>
+          </div>
+          <div class="checklist-progress-line">
+            <div class="progress" title="${progress}% point progress"><div class="progress-bar" style="width: ${progress}%"></div></div>
+            <strong>${progress}%</strong>
+          </div>
+          <div class="checklist-point-stats" aria-label="Checklist point status">
+            <span class="is-complete"><i class="bi bi-check2" aria-hidden="true"></i> ${item.completed_points || 0} completed</span>
+            <span class="is-pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i> ${item.pending_points || 0} pending</span>
+            <span><i class="bi bi-dash-circle" aria-hidden="true"></i> ${item.na_points || 0} N/A</span>
+          </div>
+          <div class="checklist-advanced-line">
+            <span title="In-progress equipment"><i class="bi bi-activity" aria-hidden="true"></i> ${item.in_progress_records || 0} in progress</span>
+            <span title="Not-started equipment"><i class="bi bi-circle" aria-hidden="true"></i> ${item.not_started_records || 0} not started</span>
+            ${missingIdentity ? `<span class="is-warning" title="Equipment records without identification"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> ${missingIdentity} ID missing</span>` : ""}
+          </div>
+          <div class="checklist-identity-line">
+            <span title="Equipment / Circuit IDs"><i class="bi bi-tag" aria-hidden="true"></i> ${equipmentText}</span>
+            <span title="Vendors / Manufacturers"><i class="bi bi-building" aria-hidden="true"></i> ${vendorText}</span>
+          </div>
+        </article>
       `;
     }).join("");
+    filterChecklistDashboards();
+  }
+
+  function filterChecklistDashboards() {
+    if (!equipmentDashboardTableBody) return;
+    const query = String(checklistDashboardSearch && checklistDashboardSearch.value || "")
+      .trim()
+      .toLowerCase();
+    const status = checklistDashboardStatus ? checklistDashboardStatus.value : "all";
+    const cards = Array.from(equipmentDashboardTableBody.querySelectorAll(".checklist-dashboard-card"));
+    let visibleCount = 0;
+
+    cards.forEach(function (card) {
+      const total = Number(card.dataset.totalRecords || 0);
+      const pending = Number(card.dataset.pendingRecords || 0);
+      const completed = Number(card.dataset.completedRecords || 0);
+      const matchesQuery = !query || String(card.dataset.search || "").includes(query);
+      const matchesStatus = status === "all"
+        || (status === "created" && total > 0)
+        || (status === "pending" && pending > 0)
+        || (status === "completed" && total > 0 && completed === total)
+        || (status === "not-created" && total === 0);
+      const visible = matchesQuery && matchesStatus;
+      card.classList.toggle("d-none", !visible);
+      if (visible) visibleCount += 1;
+    });
+
+    if (checklistDashboardResultCount) {
+      checklistDashboardResultCount.textContent = `${visibleCount} shown`;
+    }
+    if (checklistDashboardEmpty) {
+      checklistDashboardEmpty.classList.toggle("d-none", visibleCount !== 0);
+    }
   }
 
   function renderDashboard(payload) {
@@ -593,6 +667,13 @@
       openSelectedEquipmentDashboard();
     });
     equipmentTemplateSelect.addEventListener("change", openSelectedEquipmentDashboard);
+  }
+
+  if (checklistDashboardSearch) {
+    checklistDashboardSearch.addEventListener("input", filterChecklistDashboards);
+  }
+  if (checklistDashboardStatus) {
+    checklistDashboardStatus.addEventListener("change", filterChecklistDashboards);
   }
 
   [projectFilterInput, blockFilterInput].forEach((input) => {

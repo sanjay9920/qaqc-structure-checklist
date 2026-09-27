@@ -411,10 +411,53 @@ def build_equipment_template_summaries(templates, records):
     summaries = []
     for template in templates or []:
         template_records = records_by_template.get(template.get("template_id", ""), [])
+        summary = build_equipment_summary(template_records)
+        in_progress_records = sum(
+            1
+            for record in template_records
+            if (record.get("counts") or {}).get("completed", 0) > 0
+            and (record.get("counts") or {}).get("pending", 0) > 0
+        )
+        not_started_records = sum(
+            1
+            for record in template_records
+            if (record.get("counts") or {}).get("completed", 0) == 0
+            and (record.get("counts") or {}).get("pending", 0) > 0
+        )
+        equipment_labels = list(
+            dict.fromkeys(
+                str(record.get("equipment_identification") or "").strip()
+                for record in template_records
+                if str(record.get("equipment_identification") or "").strip()
+            )
+        )
+        vendor_names = list(
+            dict.fromkeys(
+                str(record.get("vendor_name") or "").strip()
+                for record in template_records
+                if str(record.get("vendor_name") or "").strip()
+            )
+        )
         summaries.append(
             {
                 **template,
-                **build_equipment_summary(template_records),
+                **summary,
+                "in_progress_records": in_progress_records,
+                "not_started_records": not_started_records,
+                "identified_records": sum(
+                    1
+                    for record in template_records
+                    if str(record.get("equipment_identification") or "").strip()
+                ),
+                "missing_identity_records": sum(
+                    1
+                    for record in template_records
+                    if not str(record.get("equipment_identification") or "").strip()
+                ),
+                "equipment_labels": equipment_labels[:3],
+                "additional_equipment_count": max(0, len(equipment_labels) - 3),
+                "vendor_names": vendor_names[:2],
+                "additional_vendor_count": max(0, len(vendor_names) - 2),
                 "next_record_number": get_next_equipment_record_number(
                     template_records
                 ),

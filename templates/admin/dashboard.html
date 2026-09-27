@@ -443,52 +443,102 @@
       </form>
     </section>
 
-    <section class="admin-table equipment-dashboard-directory mb-3" aria-labelledby="equipmentDashboardDirectoryTitle">
+    <section class="admin-panel equipment-dashboard-directory mb-3" aria-labelledby="equipmentDashboardDirectoryTitle">
       <div class="equipment-table-heading">
         <div>
           <p class="eyebrow mb-1">Block {{ block | block_label }}</p>
           <h2 id="equipmentDashboardDirectoryTitle" class="h5 mb-0">Checklist dashboards</h2>
-          <p class="dashboard-scope mb-0">Open any checklist type to create and track multiple equipment records.</p>
+          <p class="dashboard-scope mb-0">Equipment, points, identity and vendor status for every checklist.</p>
         </div>
         <span class="catalog-count">{{ equipment_template_summaries | length }} dashboards</span>
       </div>
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Checklist type</th>
-              <th>Equipment</th>
-              <th>Completed</th>
-              <th>Pending</th>
-              <th>Points progress</th>
-              <th class="text-end">Action</th>
-            </tr>
-          </thead>
-          <tbody id="equipmentDashboardTableBody">
-            {% for item in equipment_template_summaries %}
-              <tr>
-                <td>
-                  <strong>{{ item.name }}</strong>
-                  <small class="d-block text-muted">{{ item.format_no }} · {{ item.point_count }} points</small>
-                </td>
-                <td>{{ item.total_records }}</td>
-                <td>{{ item.completed_records }}</td>
-                <td>{{ item.pending_records }}</td>
-                <td>
-                  <div class="progress table-progress"><div class="progress-bar" style="width: {{ item.progress }}%"></div></div>
-                  <span class="small text-muted">{{ item.completed_points }} / {{ item.total_points }} points · {{ item.progress }}%</span>
-                </td>
-                <td class="text-end">
-                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_equipment_dashboard', template_id=item.template_id, project=project, block=block) }}">
-                    <i class="bi bi-speedometer2" aria-hidden="true"></i>
-                    Dashboard
-                  </a>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="checklist-directory-toolbar">
+        <div class="input-group input-group-sm checklist-directory-search">
+          <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+          <input id="checklistDashboardSearch" class="form-control" type="search" placeholder="Search checklist, equipment or vendor" aria-label="Search checklist dashboards">
+        </div>
+        <select id="checklistDashboardStatus" class="form-select form-select-sm" aria-label="Filter checklist dashboards">
+          <option value="all">All checklists</option>
+          <option value="created">Created records</option>
+          <option value="pending">Pending work</option>
+          <option value="completed">Fully completed</option>
+          <option value="not-created">Not created</option>
+        </select>
+        <span id="checklistDashboardResultCount" class="checklist-directory-count" aria-live="polite">{{ equipment_template_summaries | length }} shown</span>
       </div>
+      <div id="equipmentDashboardTableBody" class="checklist-dashboard-grid">
+        {% for item in equipment_template_summaries %}
+          <article
+            class="checklist-dashboard-card"
+            data-search="{{ (item.name ~ ' ' ~ item.format_no ~ ' ' ~ (item.equipment_labels | join(' ')) ~ ' ' ~ (item.vendor_names | join(' '))) | lower }}"
+            data-total-records="{{ item.total_records }}"
+            data-pending-records="{{ item.pending_records }}"
+            data-completed-records="{{ item.completed_records }}"
+          >
+            <div class="checklist-card-header">
+              <div class="checklist-card-title">
+                <strong>{{ item.name }}</strong>
+                <small>{{ item.format_no }} · {{ item.point_count }} points/form</small>
+              </div>
+              <a
+                class="btn btn-sm btn-outline-primary checklist-open-icon"
+                href="{{ url_for('admin_equipment_dashboard', template_id=item.template_id, project=project, block=block) }}"
+                title="Open {{ item.name }} dashboard"
+                aria-label="Open {{ item.name }} dashboard"
+              >
+                <i class="bi bi-arrow-up-right-square" aria-hidden="true"></i>
+              </a>
+            </div>
+
+            <div class="checklist-record-stats" aria-label="Equipment record status">
+              <span title="Total equipment records"><i class="bi bi-stack" aria-hidden="true"></i><b>{{ item.total_records }}</b><small>Total</small></span>
+              <span class="is-complete" title="Completed equipment records"><i class="bi bi-check-circle" aria-hidden="true"></i><b>{{ item.completed_records }}</b><small>Done</small></span>
+              <span class="is-pending" title="Pending equipment records"><i class="bi bi-clock" aria-hidden="true"></i><b>{{ item.pending_records }}</b><small>Pending</small></span>
+            </div>
+
+            <div class="checklist-progress-line">
+              <div class="progress" title="{{ item.progress }}% point progress">
+                <div class="progress-bar" style="width: {{ item.progress }}%"></div>
+              </div>
+              <strong>{{ item.progress }}%</strong>
+            </div>
+
+            <div class="checklist-point-stats" aria-label="Checklist point status">
+              <span class="is-complete"><i class="bi bi-check2" aria-hidden="true"></i> {{ item.completed_points }} completed</span>
+              <span class="is-pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i> {{ item.pending_points }} pending</span>
+              <span><i class="bi bi-dash-circle" aria-hidden="true"></i> {{ item.na_points }} N/A</span>
+            </div>
+
+            <div class="checklist-advanced-line">
+              <span title="In-progress equipment"><i class="bi bi-activity" aria-hidden="true"></i> {{ item.in_progress_records }} in progress</span>
+              <span title="Not-started equipment"><i class="bi bi-circle" aria-hidden="true"></i> {{ item.not_started_records }} not started</span>
+              {% if item.missing_identity_records %}
+                <span class="is-warning" title="Equipment records without identification"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> {{ item.missing_identity_records }} ID missing</span>
+              {% endif %}
+            </div>
+
+            <div class="checklist-identity-line">
+              <span title="Equipment / Circuit IDs">
+                <i class="bi bi-tag" aria-hidden="true"></i>
+                {% if item.equipment_labels %}
+                  {{ item.equipment_labels | join(', ') }}{% if item.additional_equipment_count %} +{{ item.additional_equipment_count }}{% endif %}
+                {% else %}
+                  No equipment ID
+                {% endif %}
+              </span>
+              <span title="Vendors / Manufacturers">
+                <i class="bi bi-building" aria-hidden="true"></i>
+                {% if item.vendor_names %}
+                  {{ item.vendor_names | join(', ') }}{% if item.additional_vendor_count %} +{{ item.additional_vendor_count }}{% endif %}
+                {% else %}
+                  No vendor
+                {% endif %}
+              </span>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <div id="checklistDashboardEmpty" class="checklist-directory-empty d-none">No checklist matches this filter.</div>
     </section>
 
     <section class="admin-table equipment-records-panel mb-3" aria-labelledby="equipmentRecordsTitle">
@@ -662,5 +712,5 @@
     block: {{ block | tojson }}
   };
 </script>
-<script src="{{ url_for('static', filename='js/admin_dashboard.js', v='9') }}"></script>
+<script src="{{ url_for('static', filename='js/admin_dashboard.js', v='10') }}"></script>
 {% endblock %}
