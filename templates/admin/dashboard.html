@@ -517,16 +517,19 @@
       </form>
     </section>
 
-    <section class="admin-panel equipment-dashboard-directory mb-3" aria-labelledby="equipmentDashboardDirectoryTitle">
-      <div class="equipment-table-heading">
-        <div>
-          <p class="eyebrow mb-1">Block {{ block | block_label }}</p>
-          <h2 id="equipmentDashboardDirectoryTitle" class="h5 mb-0">Checklist dashboards</h2>
-          <p class="dashboard-scope mb-0">Equipment, points, identity and vendor status for every checklist.</p>
-        </div>
-        <span class="catalog-count">{{ equipment_template_summaries | length }} dashboards</span>
-      </div>
-      <div class="checklist-directory-toolbar">
+    <details class="admin-panel equipment-dashboard-directory checklist-library-panel mb-3">
+      <summary class="checklist-library-trigger" aria-labelledby="equipmentDashboardDirectoryTitle">
+        <span class="checklist-library-icon"><i class="bi bi-collection" aria-hidden="true"></i></span>
+        <span class="checklist-library-copy">
+          <span class="eyebrow mb-1">Block {{ block | block_label }}</span>
+          <strong id="equipmentDashboardDirectoryTitle">Browse Checklist Library</strong>
+          <small>{{ equipment_template_summaries | length }} types · {{ equipment_summary.total_records }} created · {{ equipment_summary.pending_records }} pending</small>
+        </span>
+        <span class="catalog-count">Search</span>
+        <i class="bi bi-chevron-down checklist-library-chevron" aria-hidden="true"></i>
+      </summary>
+      <div class="checklist-library-content">
+        <div class="checklist-directory-toolbar">
         <div class="input-group input-group-sm checklist-directory-search">
           <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
           <input id="checklistDashboardSearch" class="form-control" type="search" placeholder="Search checklist, equipment or vendor" aria-label="Search checklist dashboards">
@@ -539,8 +542,8 @@
           <option value="not-created">Not created</option>
         </select>
         <span id="checklistDashboardResultCount" class="checklist-directory-count" aria-live="polite">{{ equipment_template_summaries | length }} shown</span>
-      </div>
-      <div id="equipmentDashboardTableBody" class="checklist-dashboard-grid">
+        </div>
+        <div id="equipmentDashboardTableBody" class="checklist-dashboard-grid">
         {% for item in equipment_template_summaries %}
           <article
             class="checklist-dashboard-card"
@@ -625,9 +628,10 @@
             {% endif %}
           </article>
         {% endfor %}
+        </div>
+        <div id="checklistDashboardEmpty" class="checklist-directory-empty d-none">No checklist matches this filter.</div>
       </div>
-      <div id="checklistDashboardEmpty" class="checklist-directory-empty d-none">No checklist matches this filter.</div>
-    </section>
+    </details>
 
     <details class="structure-tools" {% if request.args.get('manage_structures') == '1' or bulk_start or request.args.get('create_id') %}open{% endif %}>
       <summary class="structure-tools-trigger">

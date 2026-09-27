@@ -291,7 +291,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b'aria-label="Show password"', page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/static/service-worker.js")
-        self.assertIn(b"quality-sims-v18", service_worker.data)
+        self.assertIn(b"quality-sims-v19", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         service_worker.close()
 
@@ -679,8 +679,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Completed points",
             b"SCB-1",
             b"240 SQMM",
-            b"Checklist dashboards",
-            b"45 dashboards",
+            b"Browse Checklist Library",
+            b"45 types",
             b"Open Dashboard",
             b"in progress",
             b"not started",
@@ -691,6 +691,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"compact-tracking-grid compact-scroll-area",
             b"mini-progress-ring",
             b"checklist-dashboard-grid",
+            b"checklist-library-panel",
             b"Smart QA/QC tracking",
             b"Attention and next actions",
             b"Open points",
@@ -698,6 +699,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b'class="structure-tools"',
         ]:
             self.assertIn(expected, page.data)
+        self.assertNotIn(b"checklist-library-panel mb-3\" open", page.data)
         self.assertNotIn(b'class="structure-tools" open', page.data)
 
         expanded = client.get(url + "&manage_structures=1")
