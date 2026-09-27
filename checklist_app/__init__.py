@@ -805,6 +805,29 @@ def create_app():
         except Exception as exc:
             return jsonify({"error": auth_error_message(exc)}), 401
 
+    @app.post("/auth/forgot-password")
+    def auth_forgot_password():
+        payload = request.get_json(silent=True) or {}
+        email = (payload.get("email") or "").strip().lower()
+        if not email:
+            return jsonify({"error": "Please enter your email address."}), 400
+
+        try:
+            firebase_auth_request(
+                "sendOobCode",
+                {"requestType": "PASSWORD_RESET", "email": email},
+            )
+        except Exception as exc:
+            if str(exc) not in {"EMAIL_NOT_FOUND", "INVALID_EMAIL"}:
+                return jsonify({"error": auth_error_message(exc)}), 400
+
+        return jsonify(
+            {
+                "ok": True,
+                "message": "If this email is registered, a password reset link has been sent.",
+            }
+        )
+
     @app.post("/auth/signup")
     @admin_required
     def auth_signup():

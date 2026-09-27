@@ -395,12 +395,50 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertIn(b'data-password-toggle="loginPassword"', page.data)
         self.assertIn(b'aria-label="Show password"', page.data)
+        self.assertIn(b"Forgot password?", page.data)
+        self.assertIn(b'id="forgotPasswordForm"', page.data)
+        self.assertIn(b"/static/js/login.js?v=2", page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/service-worker.js")
-        self.assertIn(b"quality-sims-v21", service_worker.data)
+        self.assertIn(b"quality-sims-v22", service_worker.data)
+        self.assertIn(b"/static/js/login.js?v=2", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         self.assertEqual(service_worker.headers.get("Cache-Control"), "no-cache")
         service_worker.close()
+
+    def test_public_forgot_password_sends_a_generic_reset_response(self):
+        database = FakeFirestore()
+        client = build_test_app(database).test_client()
+
+        missing = client.post("/auth/forgot-password", json={})
+        self.assertEqual(missing.status_code, 400)
+
+        class FakeAuthResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'{}'
+
+        with patch.object(
+            app_module.url_request, "urlopen", return_value=FakeAuthResponse()
+        ) as urlopen:
+            response = client.post(
+                "/auth/forgot-password",
+                json={"email": " ADMIN@EXAMPLE.COM "},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get_json()["message"],
+            "If this email is registered, a password reset link has been sent.",
+        )
+        request_payload = urlopen.call_args.args[0]
+        self.assertIn(b'"requestType": "PASSWORD_RESET"', request_payload.data)
+        self.assertIn(b'"email": "admin@example.com"', request_payload.data)
 
     def test_admin_and_user_account_page_supports_secure_password_change(self):
         database = FakeFirestore()
