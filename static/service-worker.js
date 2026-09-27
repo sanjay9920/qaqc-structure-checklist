@@ -1,7 +1,7 @@
-const CACHE_NAME = "quality-sims-v19";
+const CACHE_NAME = "quality-sims-v20";
 const APP_SHELL = [
   "/static/offline.html",
-  "/static/css/styles.css",
+  "/static/css/styles.css?v=19",
   "/static/js/login.js",
   "/static/js/password-toggle.js?v=2",
   "/static/js/pwa.js",
@@ -52,14 +52,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         if (!response.ok) return response;
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });

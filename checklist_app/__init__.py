@@ -732,6 +732,9 @@ def create_app():
         response = app.send_static_file("service-worker.js")
         response.headers["Content-Type"] = "application/javascript; charset=utf-8"
         response.headers["Service-Worker-Allowed"] = "/"
+        response.headers["Cache-Control"] = "no-cache"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
         return response
 
     @app.post("/auth/login")

@@ -4,9 +4,14 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
-      navigator.serviceWorker.register("/service-worker.js").catch(function () {
-        // App still works normally if the browser blocks service workers.
-      });
+      navigator.serviceWorker
+        .register("/service-worker.js", { updateViaCache: "none" })
+        .then(function (registration) {
+          return registration.update();
+        })
+        .catch(function () {
+          // App still works normally if the browser blocks service workers.
+        });
     });
   }
 

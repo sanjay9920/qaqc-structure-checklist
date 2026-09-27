@@ -292,9 +292,10 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b'data-password-toggle="loginPassword"', page.data)
         self.assertIn(b'aria-label="Show password"', page.data)
         self.assertIn(b"password-toggle.js", page.data)
-        service_worker = client.get("/static/service-worker.js")
-        self.assertIn(b"quality-sims-v19", service_worker.data)
+        service_worker = client.get("/service-worker.js")
+        self.assertIn(b"quality-sims-v20", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
+        self.assertEqual(service_worker.headers.get("Cache-Control"), "no-cache")
         service_worker.close()
 
     def test_admin_and_user_account_page_supports_secure_password_change(self):
