@@ -6,9 +6,14 @@
   const recordSearch = document.getElementById("equipmentRecordSearch");
   const recordStatus = document.getElementById("equipmentRecordStatus");
   const recordResultCount = document.getElementById("equipmentRecordResultCount");
+  const previousPage = document.getElementById("equipmentPreviousPage");
+  const nextPage = document.getElementById("equipmentNextPage");
+  const pageStatus = document.getElementById("equipmentPageStatus");
   if (!config.apiUrl || !recordsBody) return;
 
   let refreshInFlight = false;
+  let currentPage = Number(config.page || 1);
+  let searchTimer = null;
 
   function escapeHtml(value) {
     return String(value || "")
@@ -52,22 +57,17 @@
       ? "completed"
       : (counts.completed > 0 ? "in_progress" : "not_started");
     const statusLabel = state === "completed" ? "Complete" : (state === "in_progress" ? "In progress" : "Not started");
-    const searchText = [record.record_number, record.equipment_identification, record.specification, record.vendor_name]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
     return `
-      <tr data-record-search="${escapeHtml(searchText)}" data-record-status="${state}" data-missing-id="${record.equipment_identification ? "0" : "1"}">
-        <td>${escapeHtml(record.record_number || "")}</td>
+      <tr>
+        <td><strong>${escapeHtml(record.work_id || "")}</strong><small class="d-block text-muted">Record ${escapeHtml(record.record_number || "")}</small></td>
         <td><strong>${escapeHtml(record.equipment_identification || "Not set")}</strong></td>
+        <td>${escapeHtml(record.identity_details_text || "-")}</td>
         <td>${escapeHtml(record.specification || "-")}</td>
         <td>${escapeHtml(record.vendor_name || "-")}</td>
         <td><span class="record-state-badge record-state-${state}">${statusLabel}</span></td>
-        <td>${counts.completed || 0} / ${counts.total || 0}</td>
-        <td>${counts.pending || 0} / ${counts.total || 0}</td>
         <td>
           <div class="progress table-progress"><div class="progress-bar" style="width: ${progress}%"></div></div>
-          <span class="small text-muted">${progress}%</span>
+          <span class="small text-muted">${progress}% · ${counts.completed || 0} complete · ${counts.pending || 0} pending</span>
         </td>
         <td class="text-end">
           <div class="table-actions">
@@ -82,21 +82,15 @@
     `;
   }
 
-  function filterRecords() {
-    const query = String(recordSearch && recordSearch.value || "").trim().toLowerCase();
-    const status = recordStatus ? recordStatus.value : "all";
-    const rows = Array.from(recordsBody.querySelectorAll("tr[data-record-search]"));
-    let shown = 0;
-    rows.forEach(function (row) {
-      const matchesQuery = !query || String(row.dataset.recordSearch || "").includes(query);
-      const matchesStatus = status === "all"
-        || (status === "missing_id" && row.dataset.missingId === "1")
-        || row.dataset.recordStatus === status;
-      const visible = matchesQuery && matchesStatus;
-      row.classList.toggle("d-none", !visible);
-      if (visible) shown += 1;
-    });
-    if (recordResultCount) recordResultCount.textContent = `${shown} shown`;
+  function renderPagination(pagination) {
+    const values = pagination || {};
+    currentPage = values.page || 1;
+    if (recordResultCount) {
+      recordResultCount.textContent = `${values.start || 0}-${values.end || 0} of ${values.total || 0}`;
+    }
+    if (pageStatus) pageStatus.textContent = `Page ${currentPage} of ${values.total_pages || 1}`;
+    if (previousPage) previousPage.disabled = !values.has_previous;
+    if (nextPage) nextPage.disabled = !values.has_next;
   }
 
   function render(payload) {
@@ -105,8 +99,8 @@
     if (window.smartTracking) window.smartTracking.render(payload.smart_tracking || {});
     recordsBody.innerHTML = records.length
       ? records.map(renderRecord).join("")
-      : '<tr><td colspan="9" class="text-center text-muted py-4">No equipment created. Add the first record above.</td></tr>';
-    filterRecords();
+      : '<tr><td colspan="8" class="text-center text-muted py-4">No matching checklist records.</td></tr>';
+    renderPagination(payload.pagination || {});
     if (recordNumberInput && document.activeElement !== recordNumberInput) {
       recordNumberInput.value = payload.next_record_number || "01";
     }
@@ -118,11 +112,15 @@
     throw new Error("Unexpected server response. Please try again.");
   }
 
-  async function refresh() {
+  async function refresh(page) {
     if (refreshInFlight || document.hidden) return;
     refreshInFlight = true;
     try {
-      const response = await fetch(config.apiUrl, {
+      const url = new URL(config.apiUrl, window.location.origin);
+      url.searchParams.set("page", String(page || currentPage || 1));
+      url.searchParams.set("q", String(recordSearch && recordSearch.value || "").trim());
+      url.searchParams.set("status", recordStatus ? recordStatus.value : "all");
+      const response = await fetch(url.toString(), {
         headers: { "Accept": "application/json" }
       });
       const payload = await readJson(response);
@@ -159,8 +157,13 @@
     }
   });
 
-  if (recordSearch) recordSearch.addEventListener("input", filterRecords);
-  if (recordStatus) recordStatus.addEventListener("change", filterRecords);
+  if (recordSearch) recordSearch.addEventListener("input", function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () { refresh(1); }, 300);
+  });
+  if (recordStatus) recordStatus.addEventListener("change", function () { refresh(1); });
+  if (previousPage) previousPage.addEventListener("click", function () { refresh(currentPage - 1); });
+  if (nextPage) nextPage.addEventListener("click", function () { refresh(currentPage + 1); });
 
   setInterval(refresh, 30000);
   document.addEventListener("visibilitychange", function () {

@@ -159,7 +159,7 @@ body {
 
 .equipment-identity-banner {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   width: 100%;
   margin: 0 0 1rem;
@@ -979,6 +979,29 @@ body {
 .equipment-create-panel {
   margin-bottom: 1rem;
   border-top: 4px solid var(--blue);
+}
+
+.equipment-create-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.equipment-create-action {
+  grid-column: span 2;
+}
+
+.record-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.65rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .equipment-details-panel {
@@ -2031,6 +2054,19 @@ body {
   .checklist-dashboard-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .equipment-create-grid,
+  .equipment-identity-banner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .equipment-identity-banner > div:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .equipment-identity-banner > div:nth-child(n + 3) {
+    border-top: 1px solid #cbd9f6;
+  }
 }
 
 .equipment-type-summary {
@@ -2068,6 +2104,14 @@ body {
   .work-register-toolbar,
   .equipment-record-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .equipment-create-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .equipment-create-action {
+    grid-column: auto;
   }
 
   .status-metric {

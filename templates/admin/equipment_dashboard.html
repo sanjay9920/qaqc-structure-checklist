@@ -8,7 +8,7 @@
     <p class="eyebrow mb-1">Quality Department Checklist Dashboard</p>
     <h1 class="h3 mb-1">{{ template.name }}</h1>
     <p class="dashboard-scope mb-0">{{ project_display_name }} / Block {{ block | block_label }} / {{ template.format_no }}</p>
-    <p class="dashboard-tagline mb-0">Create and track every equipment record for this checklist type.</p>
+    <p class="dashboard-tagline mb-0">Create and track every work record for this checklist type.</p>
   </div>
   <div class="d-flex flex-wrap gap-2">
     <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=project, block=block) }}">
@@ -28,7 +28,7 @@
 
 <section class="summary-grid equipment-type-summary" aria-label="Checklist dashboard summary">
   <div class="summary-tile">
-    <span class="summary-label">Equipment records</span>
+    <span class="summary-label">Checklist records</span>
     <strong id="typeTotalRecords">{{ summary.total_records }}</strong>
   </div>
   <div class="summary-tile">
@@ -48,7 +48,7 @@
     <strong id="typeNotStartedRecords">{{ summary.not_started_records }}</strong>
   </div>
   <div class="summary-tile">
-    <span class="summary-label">Unique equipment</span>
+    <span class="summary-label">Unique identities</span>
     <strong id="typeUniqueEquipment">{{ summary.unique_equipment_count }}</strong>
     <small><span id="typeMissingIdentity">{{ summary.missing_identity_records }}</span> missing ID</small>
   </div>
@@ -72,34 +72,40 @@
   <div class="section-title-row">
     <div>
       <p class="eyebrow mb-1">New {{ template.name }} record</p>
-      <h2 id="createEquipmentTitle" class="h5 mb-0">Add equipment</h2>
+      <h2 id="createEquipmentTitle" class="h5 mb-0">Add checklist record</h2>
     </div>
     <span class="catalog-count">{{ template.point_count }} checklist points</span>
   </div>
-  <form action="{{ url_for('admin_create_equipment') }}" method="post" class="row g-2 align-items-end">
+  <form action="{{ url_for('admin_create_equipment') }}" method="post" class="equipment-create-grid">
     <input type="hidden" name="project" value="{{ project }}">
     <input type="hidden" name="block" value="{{ block }}">
     <input type="hidden" name="template_id" value="{{ template.template_id }}">
-    <div class="col-5 col-lg-2">
-      <label for="equipment_record_number" class="form-label">Record No.</label>
-      <input id="equipment_record_number" name="record_number" class="form-control" value="{{ next_record_number }}" maxlength="30" required>
+    <div>
+      <label for="equipment_record_number" class="form-label">Auto Record No.</label>
+      <input id="equipment_record_number" name="record_number" class="form-control" value="{{ next_record_number }}" maxlength="30" readonly required>
     </div>
-    <div class="col-7 col-lg-3">
-      <label for="equipment_identification" class="form-label">Equipment / Circuit ID</label>
-      <input id="equipment_identification" name="equipment_identification" class="form-control" maxlength="120" placeholder="e.g. SCB-1 or SCB-2" required>
+    <div>
+      <label for="equipment_identification" class="form-label">{{ template.identity_profile.primary_label }}</label>
+      <input id="equipment_identification" name="equipment_identification" class="form-control" maxlength="120" placeholder="{{ template.identity_profile.primary_placeholder }}" required>
     </div>
-    <div class="col-12 col-md-6 col-lg-3">
-      <label for="equipment_specification" class="form-label">Size / Rating / Specification</label>
-      <input id="equipment_specification" name="specification" class="form-control" maxlength="160" placeholder="e.g. 240 SQMM or 400 SQMM">
+    <div>
+      <label for="equipment_specification" class="form-label">{{ template.identity_profile.specification_label }}</label>
+      <input id="equipment_specification" name="specification" class="form-control" maxlength="160" placeholder="{{ template.identity_profile.specification_placeholder }}">
     </div>
-    <div class="col-12 col-md-6 col-lg-3">
+    <div>
       <label for="equipment_vendor_name" class="form-label">Vendor / Manufacturer</label>
       <input id="equipment_vendor_name" name="vendor_name" class="form-control" maxlength="120" placeholder="Enter vendor name">
     </div>
-    <div class="col-12 col-lg-1 d-grid">
+    {% for field in template.identity_profile.fields %}
+      <div>
+        <label for="identity_{{ field.key }}" class="form-label">{{ field.label }}</label>
+        <input id="identity_{{ field.key }}" name="{{ field.key }}" class="form-control" type="{{ field.input_type or 'text' }}" maxlength="160" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
+      </div>
+    {% endfor %}
+    <div class="d-grid equipment-create-action">
       <button class="btn btn-primary" type="submit" title="Create equipment checklist">
         <i class="bi bi-plus-circle" aria-hidden="true"></i>
-        <span class="d-lg-none">Create</span>
+        <span>Create Checklist</span>
       </button>
     </div>
   </form>
@@ -109,53 +115,50 @@
   <div class="equipment-table-heading">
     <div>
       <p class="eyebrow mb-1">{{ template.name }}</p>
-      <h2 id="equipmentRecordsTitle" class="h5 mb-0">Equipment records</h2>
+      <h2 id="equipmentRecordsTitle" class="h5 mb-0">Checklist records</h2>
     </div>
     <span id="equipmentDashboardRefreshStatus" class="dashboard-scope">Auto-updates every 30 seconds</span>
   </div>
   <div class="equipment-record-toolbar">
     <div class="input-group input-group-sm">
       <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
-      <input id="equipmentRecordSearch" class="form-control" type="search" placeholder="Search equipment, specification or vendor" aria-label="Search equipment records">
+      <input id="equipmentRecordSearch" class="form-control" type="search" value="{{ filters.search }}" placeholder="Search Work ID, equipment, route, specification or vendor" aria-label="Search equipment records">
     </div>
     <select id="equipmentRecordStatus" class="form-select form-select-sm" aria-label="Filter equipment status">
-      <option value="all">All records</option>
-      <option value="completed">Fully completed</option>
-      <option value="in_progress">In progress</option>
-      <option value="not_started">Not started</option>
-      <option value="missing_id">Equipment ID missing</option>
+      <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All records</option>
+      <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Fully completed</option>
+      <option value="in_progress" {% if filters.status == 'in_progress' %}selected{% endif %}>In progress</option>
+      <option value="not_started" {% if filters.status == 'not_started' %}selected{% endif %}>Not started</option>
+      <option value="missing_id" {% if filters.status == 'missing_id' %}selected{% endif %}>Identity missing</option>
     </select>
-    <span id="equipmentRecordResultCount" class="checklist-directory-count" aria-live="polite">{{ records | length }} shown</span>
+    <span id="equipmentRecordResultCount" class="checklist-directory-count" aria-live="polite">{{ pagination.start }}-{{ pagination.end }} of {{ pagination.total }}</span>
   </div>
   <div class="table-responsive">
     <table class="table align-middle mb-0">
       <thead>
         <tr>
-          <th>Record</th>
-          <th>Equipment / Circuit</th>
-          <th>Specification</th>
+          <th>Work ID</th>
+          <th>{{ template.identity_profile.primary_label }}</th>
+          <th>Route / Record Details</th>
+          <th>{{ template.identity_profile.specification_label }}</th>
           <th>Vendor</th>
           <th>Status</th>
-          <th>Completed</th>
-          <th>Pending</th>
           <th>Progress</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody id="equipmentTypeRecordsBody">
         {% for record in records %}
-          {% if record.counts.pending == 0 %}{% set record_state = 'completed' %}{% elif record.counts.completed > 0 %}{% set record_state = 'in_progress' %}{% else %}{% set record_state = 'not_started' %}{% endif %}
-          <tr data-record-search="{{ (record.equipment_identification ~ ' ' ~ record.specification ~ ' ' ~ record.vendor_name ~ ' ' ~ record.record_number) | lower }}" data-record-status="{{ record_state }}" data-missing-id="{{ '1' if not record.equipment_identification else '0' }}">
-            <td>{{ record.record_number }}</td>
+          <tr>
+            <td><strong>{{ record.work_id }}</strong><small class="d-block text-muted">Record {{ record.record_number }}</small></td>
             <td><strong>{{ record.equipment_identification or "Not set" }}</strong></td>
+            <td>{{ record.identity_details_text or "-" }}</td>
             <td>{{ record.specification or "-" }}</td>
             <td>{{ record.vendor_name or "-" }}</td>
-            <td><span class="record-state-badge record-state-{{ record_state }}">{% if record_state == 'completed' %}Complete{% elif record_state == 'in_progress' %}In progress{% else %}Not started{% endif %}</span></td>
-            <td>{{ record.counts.completed }} / {{ record.counts.total }}</td>
-            <td>{{ record.counts.pending }} / {{ record.counts.total }}</td>
+            <td><span class="record-state-badge record-state-{{ record.state }}">{% if record.state == 'completed' %}Complete{% elif record.state == 'in_progress' %}In progress{% else %}Not started{% endif %}</span></td>
             <td>
               <div class="progress table-progress"><div class="progress-bar" style="width: {{ record.counts.progress }}%"></div></div>
-              <span class="small text-muted">{{ record.counts.progress }}%</span>
+              <span class="small text-muted">{{ record.counts.progress }}% · {{ record.counts.completed }} complete · {{ record.counts.pending }} pending</span>
             </td>
             <td class="text-end">
               <div class="table-actions">
@@ -168,10 +171,15 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="9" class="text-center text-muted py-4">No equipment created. Add the first record above.</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-4">No matching checklist records.</td></tr>
         {% endfor %}
       </tbody>
     </table>
+  </div>
+  <div class="record-pagination" aria-label="Checklist record pages">
+    <button id="equipmentPreviousPage" class="btn btn-sm btn-outline-dark" type="button" {% if not pagination.has_previous %}disabled{% endif %}><i class="bi bi-chevron-left" aria-hidden="true"></i> Previous</button>
+    <span id="equipmentPageStatus">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    <button id="equipmentNextPage" class="btn btn-sm btn-outline-dark" type="button" {% if not pagination.has_next %}disabled{% endif %}>Next <i class="bi bi-chevron-right" aria-hidden="true"></i></button>
   </div>
 </section>
 {% endblock %}
@@ -180,9 +188,10 @@
 <script>
   window.equipmentTypeDashboard = {
     apiUrl: {{ url_for('admin_equipment_dashboard_api', template_id=template.template_id, project=project, block=block) | tojson }},
-    templateId: {{ template.template_id | tojson }}
+    templateId: {{ template.template_id | tojson }},
+    page: {{ pagination.page | tojson }}
   };
 </script>
 <script src="{{ url_for('static', filename='js/smart_tracking.js', v='1') }}"></script>
-<script src="{{ url_for('static', filename='js/equipment_dashboard.js', v='12') }}"></script>
+<script src="{{ url_for('static', filename='js/equipment_dashboard.js', v='13') }}"></script>
 {% endblock %}

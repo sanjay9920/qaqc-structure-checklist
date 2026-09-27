@@ -5,6 +5,12 @@ from google.cloud import firestore
 
 from .config import STATUS_OPTIONS, settings
 from .equipment_catalog import get_equipment_template
+from .identity_profiles import (
+    IDENTITY_DETAIL_LIMITS,
+    format_work_id,
+    get_identity_profile,
+    identity_details_text,
+)
 from .qr import equipment_url
 from .services import (
     calculate_counts,
@@ -35,14 +41,32 @@ def _clean_detail(value, label, maximum):
 
 
 def normalize_equipment_details(
-    vendor_name="", equipment_identification="", specification=""
+    vendor_name="",
+    equipment_identification="",
+    specification="",
+    identity_details=None,
 ):
+    supplied_identity_details = identity_details or {}
+    if not isinstance(supplied_identity_details, dict):
+        raise ValueError("Identity details must be supplied as fields.")
+    invalid_fields = set(supplied_identity_details) - set(IDENTITY_DETAIL_LIMITS)
+    if invalid_fields:
+        raise ValueError("Invalid identity detail field.")
     return {
         "vendor_name": _clean_detail(vendor_name, "Vendor name", 120),
         "equipment_identification": _clean_detail(
             equipment_identification, "Equipment identification", 120
         ),
         "specification": _clean_detail(specification, "Specification", 160),
+        "identity_details": {
+            key: _clean_detail(
+                supplied_identity_details.get(key, ""),
+                key.replace("_", " ").title(),
+                maximum,
+            )
+            for key, maximum in IDENTITY_DETAIL_LIMITS.items()
+            if key in supplied_identity_details
+        },
     }
 
 
@@ -162,6 +186,17 @@ def build_equipment_view(equipment_id, data, template):
             }
         )
     project_id, block_id = normalize_scope(data.get("project"), data.get("block"))
+    identity_profile = get_identity_profile(template)
+    identity_details = {
+        field["key"]: str((data.get("identity_details") or {}).get(field["key"], ""))
+        for field in identity_profile["fields"]
+    }
+    work_id = data.get("work_id") or format_work_id(
+        template,
+        project_id,
+        display_block(block_id),
+        data.get("record_number", "01"),
+    )
     return {
         "equipment_id": equipment_id,
         "project": project_id,
@@ -172,9 +207,24 @@ def build_equipment_view(equipment_id, data, template):
         "format_no": template.get("format_no", ""),
         "source_sheet": template.get("source_sheet", ""),
         "record_number": data.get("record_number", "01"),
+        "work_id": work_id,
         "vendor_name": data.get("vendor_name", ""),
         "equipment_identification": data.get("equipment_identification", ""),
         "specification": data.get("specification", ""),
+        "identity_profile": identity_profile,
+        "identity_details": identity_details,
+        "identity_details_text": identity_details_text(
+            identity_details, identity_profile
+        ),
+        "identity_search_text": " ".join(
+            [
+                work_id,
+                data.get("equipment_identification", ""),
+                data.get("specification", ""),
+                data.get("vendor_name", ""),
+                *identity_details.values(),
+            ]
+        ).strip(),
         "qr_url": data.get("qr_url") or equipment_url(equipment_id),
         "created_at": data.get("created_at"),
         "created_by": data.get("created_by"),
@@ -199,6 +249,7 @@ def create_equipment_checklist(
     vendor_name="",
     equipment_identification="",
     specification="",
+    identity_details=None,
 ):
     project_id, block_id = normalize_scope(project, block)
     template = get_equipment_template(template_id)
@@ -208,7 +259,10 @@ def create_equipment_checklist(
         raise ValueError("Select a valid equipment checklist.")
     record_number = normalize_record_number(record_number)
     details = normalize_equipment_details(
-        vendor_name, equipment_identification, specification
+        vendor_name,
+        equipment_identification,
+        specification,
+        identity_details,
     )
     equipment_id = format_equipment_id(
         project_id, block_id, template["template_id"], record_number
@@ -239,6 +293,9 @@ def create_equipment_checklist(
         "template_name": template["name"],
         "format_no": template.get("format_no", ""),
         "record_number": record_number,
+        "work_id": format_work_id(
+            template, project_id, display_block(block_id), record_number
+        ),
         **details,
         "qr_url": equipment_url(equipment_id, base_url),
         "checklist": build_default_equipment_checklist(template),
@@ -257,7 +314,12 @@ def create_equipment_checklist(
 def update_equipment_details(db, equipment_id, details, user, partial=False):
     if not isinstance(details, dict):
         raise ValueError("Checklist details must be supplied as fields.")
-    allowed = {"vendor_name", "equipment_identification", "specification"}
+    allowed = {
+        "vendor_name",
+        "equipment_identification",
+        "specification",
+        "identity_details",
+    }
     if set(details) - allowed:
         raise ValueError("Invalid checklist detail field.")
 
@@ -267,7 +329,12 @@ def update_equipment_details(db, equipment_id, details, user, partial=False):
     if not snap.exists:
         return None
     data = snap.to_dict() or {}
-    current = {key: data.get(key, "") for key in allowed}
+    current = {
+        "vendor_name": data.get("vendor_name", ""),
+        "equipment_identification": data.get("equipment_identification", ""),
+        "specification": data.get("specification", ""),
+        "identity_details": data.get("identity_details", {}) or {},
+    }
     normalized = normalize_equipment_details(
         details.get("vendor_name", current["vendor_name"] if partial else ""),
         details.get(
@@ -275,6 +342,10 @@ def update_equipment_details(db, equipment_id, details, user, partial=False):
             current["equipment_identification"] if partial else "",
         ),
         details.get("specification", current["specification"] if partial else ""),
+        details.get(
+            "identity_details",
+            current["identity_details"] if partial else {},
+        ),
     )
     if normalized == current:
         return get_equipment_checklist(db, equipment_id)
@@ -329,15 +400,20 @@ def get_equipment_checklist(db, equipment_id):
     return build_equipment_view(equipment_id, data, template)
 
 
-def list_equipment_checklists(db, project=None, block=None):
+def list_equipment_checklists(db, project=None, block=None, template_id=None):
     project_id, block_id = normalize_scope(project, block)
+    normalized_template_id = str(template_id or "").strip().lower()
     rows = []
     collection = db.collection("equipment_checklists")
     docs = (
         collection.where(
-            filter=firestore.FieldFilter("project", "==", project_id)
+            filter=firestore.FieldFilter(
+                "template_id" if normalized_template_id else "project",
+                "==",
+                normalized_template_id if normalized_template_id else project_id,
+            )
         ).stream()
-        if project_id
+        if normalized_template_id or project_id
         else collection.stream()
     )
     for snap in docs:
@@ -348,6 +424,8 @@ def list_equipment_checklists(db, project=None, block=None):
         if project_id and record_project != project_id:
             continue
         if block_id and record_block != block_id:
+            continue
+        if normalized_template_id and str(data.get("template_id") or "").lower() != normalized_template_id:
             continue
         template = get_equipment_template(data.get("template_id"))
         if template:
@@ -455,7 +533,12 @@ def build_equipment_family_summaries(records):
     families = {}
     for record in records or []:
         identity = str(record.get("equipment_identification") or "").strip()
-        family_name = _equipment_family(identity)
+        profile = record.get("identity_profile") or {}
+        family_name = (
+            str(record.get("template_name") or "Cable circuits").upper()
+            if profile.get("type") == "cable"
+            else _equipment_family(identity)
+        )
         family = families.setdefault(
             family_name,
             {"records": [], "equipment": {}, "blocks": set(), "templates": {}},

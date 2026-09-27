@@ -9,7 +9,8 @@
   const identificationInput = document.getElementById("equipmentIdentification");
   const specificationInput = document.getElementById("equipmentSpecification");
   const vendorInput = document.getElementById("equipmentVendor");
-  const detailInputs = [identificationInput, specificationInput, vendorInput].filter(Boolean);
+  const identityDetailInputs = Array.from(document.querySelectorAll("[data-identity-detail-key]"));
+  const detailInputs = [identificationInput, specificationInput, vendorInput, ...identityDetailInputs].filter(Boolean);
 
   function labelFor(status) {
     return window.statusLabels[status] || status;
@@ -37,12 +38,19 @@
     setText("equipmentIdentificationValue", payload.equipment_identification, "-");
     setText("equipmentSpecificationValue", payload.specification, "-");
     setText("equipmentVendorValue", payload.vendor_name, "-");
+    document.querySelectorAll("[data-identity-detail-value]").forEach(function (element) {
+      const key = element.dataset.identityDetailValue;
+      element.textContent = (payload.identity_details || {})[key] || "-";
+    });
 
     const detailsFocused = detailInputs.includes(document.activeElement);
     if (detailInputs.length && (detailsForm.dataset.saving === "true" || (!detailsFocused && detailsForm.dataset.dirty !== "true"))) {
       identificationInput.value = payload.equipment_identification || "";
       specificationInput.value = payload.specification || "";
       vendorInput.value = payload.vendor_name || "";
+      identityDetailInputs.forEach(function (input) {
+        input.value = (payload.identity_details || {})[input.dataset.identityDetailKey] || "";
+      });
       detailInputs.forEach(function (input) { input.dataset.previousValue = input.value; });
       detailsForm.dataset.dirty = "false";
     }
@@ -275,10 +283,15 @@
       if (button) button.disabled = true;
       if (status) status.textContent = "Saving...";
       try {
+        const identityDetails = {};
+        identityDetailInputs.forEach(function (input) {
+          identityDetails[input.dataset.identityDetailKey] = input.value;
+        });
         const payload = await post(`${baseUrl}/details`, {
           equipment_identification: identificationInput.value,
           specification: specificationInput.value,
-          vendor_name: vendorInput.value
+          vendor_name: vendorInput.value,
+          identity_details: identityDetails
         });
         renderRecord(payload);
         if (status) status.textContent = "Details saved";

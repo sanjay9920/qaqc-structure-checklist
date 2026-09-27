@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import json
+import math
 from pathlib import Path
 import time
 from urllib import error as url_error
@@ -33,7 +34,7 @@ from .exports import (
     export_history_csv,
     export_structures_csv,
 )
-from .equipment_catalog import get_equipment_catalog
+from .equipment_catalog import get_equipment_catalog, get_equipment_template
 from .equipment_services import (
     build_equipment_family_summaries,
     build_equipment_summary,
@@ -998,7 +999,15 @@ def create_app():
             download_name=f"{normalized_id}.png",
         )
 
-    def equipment_dashboard_payload(project_id, block_id, template_id):
+    def equipment_dashboard_payload(
+        project_id,
+        block_id,
+        template_id,
+        search="",
+        status="all",
+        page=1,
+        per_page=50,
+    ):
         template_id = (template_id or "").strip().lower()
         template = next(
             (
@@ -1010,30 +1019,102 @@ def create_app():
         )
         if not template:
             return None
-        records = [
-            record
-            for record in list_equipment_checklists(
-                db(), project=project_id, block=block_id
-            )
-            if record.get("template_id") == template_id
+        all_records = list_equipment_checklists(
+            db(),
+            project=project_id,
+            block=block_id,
+            template_id=template_id,
+        )
+        normalized_search = str(search or "").strip().lower()
+        allowed_statuses = {"all", "completed", "in_progress", "not_started", "missing_id"}
+        status = status if status in allowed_statuses else "all"
+
+        def record_state(record):
+            counts = record.get("counts") or {}
+            if counts.get("pending", 0) == 0 and counts.get("total", 0) > 0:
+                return "completed"
+            if counts.get("completed", 0) > 0:
+                return "in_progress"
+            return "not_started"
+
+        filtered_records = []
+        for record in all_records:
+            state = record_state(record)
+            if normalized_search and normalized_search not in str(
+                record.get("identity_search_text") or ""
+            ).lower():
+                continue
+            if status == "missing_id":
+                if record.get("equipment_identification"):
+                    continue
+            elif status != "all" and state != status:
+                continue
+            filtered_records.append(record)
+
+        try:
+            page = max(1, int(page or 1))
+        except (TypeError, ValueError):
+            page = 1
+        per_page = max(10, min(100, int(per_page or 50)))
+        filtered_total = len(filtered_records)
+        total_pages = max(1, math.ceil(filtered_total / per_page))
+        page = min(page, total_pages)
+        start = (page - 1) * per_page
+
+        def dashboard_record(record):
+            return {
+                "equipment_id": record.get("equipment_id", ""),
+                "project": record.get("project", ""),
+                "block": record.get("block", ""),
+                "template_id": record.get("template_id", ""),
+                "template_name": record.get("template_name", ""),
+                "record_number": record.get("record_number", ""),
+                "work_id": record.get("work_id", ""),
+                "equipment_identification": record.get(
+                    "equipment_identification", ""
+                ),
+                "specification": record.get("specification", ""),
+                "vendor_name": record.get("vendor_name", ""),
+                "identity_details": record.get("identity_details", {}),
+                "identity_details_text": record.get("identity_details_text", ""),
+                "identity_search_text": record.get("identity_search_text", ""),
+                "counts": record.get("counts", {}),
+                "state": record_state(record),
+                "updated_at": record.get("updated_at"),
+            }
+
+        page_records = [
+            dashboard_record(record)
+            for record in filtered_records[start : start + per_page]
         ]
         return {
             "project": project_id,
             "block": block_id,
             "template": template,
-            "records": records,
-            "summary": build_equipment_summary(records),
-            "family_summaries": build_equipment_family_summaries(records),
+            "records": page_records,
+            "summary": build_equipment_summary(all_records),
+            "family_summaries": build_equipment_family_summaries(all_records),
             "smart_tracking": build_dashboard_intelligence(
                 [],
-                records,
+                all_records,
                 template_summaries=build_equipment_template_summaries(
-                    [template], records
+                    [template], all_records
                 ),
                 project=project_id,
                 block=block_id,
             ),
-            "next_record_number": get_next_equipment_record_number(records),
+            "next_record_number": get_next_equipment_record_number(all_records),
+            "filters": {"search": search, "status": status},
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": filtered_total,
+                "total_pages": total_pages,
+                "start": start + 1 if filtered_total else 0,
+                "end": min(start + per_page, filtered_total),
+                "has_previous": page > 1,
+                "has_next": page < total_pages,
+            },
         }
 
     @app.get("/admin/equipment-dashboard/<template_id>")
@@ -1048,7 +1129,14 @@ def create_app():
         if not block_id:
             flash("Select a block before opening a checklist dashboard.", "warning")
             return redirect(url_for("admin_dashboard", project=project_id))
-        payload = equipment_dashboard_payload(project_id, block_id, template_id)
+        payload = equipment_dashboard_payload(
+            project_id,
+            block_id,
+            template_id,
+            search=request.args.get("q", ""),
+            status=request.args.get("status", "all"),
+            page=request.args.get("page", 1),
+        )
         if not payload:
             return render_template("not_found.html", structure_id=template_id), 404
         return render_template(
@@ -1067,7 +1155,14 @@ def create_app():
             return jsonify({"error": "Project and block are required."}), 400
         if not user_can_access_project(g.user, project_id):
             return jsonify({"error": "You do not have access to this project."}), 403
-        payload = equipment_dashboard_payload(project_id, block_id, template_id)
+        payload = equipment_dashboard_payload(
+            project_id,
+            block_id,
+            template_id,
+            search=request.args.get("q", ""),
+            status=request.args.get("status", "all"),
+            page=request.args.get("page", 1),
+        )
         if not payload:
             return jsonify({"error": "Checklist dashboard not found."}), 404
         return jsonify(payload)
@@ -1592,17 +1687,26 @@ def create_app():
         if access_error:
             return access_error
         template_id = request.form.get("template_id", "").strip()
+        template = get_equipment_template(template_id)
         record_number = request.form.get("record_number", "").strip()
         if not record_number:
             template_records = [
                 record
                 for record in list_equipment_checklists(
-                    db(), project=project_id, block=block_id
+                    db(),
+                    project=project_id,
+                    block=block_id,
+                    template_id=template_id,
                 )
-                if record.get("template_id") == template_id
             ]
             record_number = get_next_equipment_record_number(template_records)
         try:
+            identity_details = {
+                field["key"]: request.form.get(field["key"], "")
+                for field in (template or {}).get("identity_profile", {}).get(
+                    "fields", []
+                )
+            }
             equipment = create_equipment_checklist(
                 db(),
                 project_id,
@@ -1616,6 +1720,7 @@ def create_app():
                     "equipment_identification", ""
                 ),
                 specification=request.form.get("specification", ""),
+                identity_details=identity_details,
             )
         except ValueError as exc:
             flash(str(exc), "danger")

@@ -363,7 +363,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b'aria-label="Show password"', page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/service-worker.js")
-        self.assertIn(b"quality-sims-v20", service_worker.data)
+        self.assertIn(b"quality-sims-v21", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         self.assertEqual(service_worker.headers.get("Cache-Control"), "no-cache")
         service_worker.close()
@@ -708,6 +708,75 @@ class EquipmentWorkflowTests(unittest.TestCase):
             template = get_equipment_template(template_id)
             self.assertEqual(len(template["points"][0]["measurement_fields"]), field_count)
 
+    def test_every_checklist_has_a_dynamic_identity_profile(self):
+        catalog = get_equipment_catalog()
+        profile_codes = set()
+
+        for template in catalog:
+            profile = template.get("identity_profile") or {}
+            self.assertIn(profile.get("type"), {"cable", "test", "equipment"})
+            self.assertTrue(profile.get("code"))
+            self.assertTrue(profile.get("primary_label"))
+            self.assertTrue(profile.get("specification_label"))
+            self.assertTrue(profile.get("fields"))
+            self.assertNotIn(profile["code"], profile_codes)
+            profile_codes.add(profile["code"])
+
+        self.assertEqual(
+            get_equipment_template("cable-laying")["identity_profile"]["type"],
+            "cable",
+        )
+        self.assertEqual(
+            get_equipment_template("voc-testing")["identity_profile"]["type"],
+            "test",
+        )
+        self.assertEqual(
+            get_equipment_template("transformer-installation")["identity_profile"]["type"],
+            "equipment",
+        )
+
+    def test_checklist_dashboard_paginates_and_searches_identity_details(self):
+        database = FakeFirestore()
+        for number in range(1, 56):
+            create_equipment_checklist(
+                database,
+                "150 MW AKOLA SITE",
+                "11",
+                "cable-laying",
+                f"{number:02d}",
+                "admin@example.com",
+                equipment_identification=f"AC-CIRCUIT-{number:03d}",
+                specification="3C x 240 SQMM",
+                identity_details={
+                    "from_location": f"IDT-{number:02d}",
+                    "to_location": "HT PANEL-1",
+                    "run_number": f"RUN-{number:03d}",
+                    "route_reference": f"ROUTE-{number:03d}",
+                },
+            )
+
+        client = build_test_app(database, logged_in=True).test_client()
+        base_url = (
+            "/admin/api/equipment-dashboard/cable-laying"
+            "?project=150-MW-AKOLA-SITE&block=BLOCK-11"
+        )
+        first_page = client.get(base_url).get_json()
+        second_page = client.get(f"{base_url}&page=2").get_json()
+        search = client.get(f"{base_url}&q=route-055").get_json()
+
+        self.assertEqual(first_page["pagination"]["total"], 55)
+        self.assertEqual(len(first_page["records"]), 50)
+        self.assertEqual(second_page["pagination"]["page"], 2)
+        self.assertEqual(len(second_page["records"]), 5)
+        self.assertNotIn("checklist", first_page["records"][0])
+        self.assertEqual(search["pagination"]["total"], 1)
+        self.assertEqual(search["records"][0]["equipment_identification"], "AC-CIRCUIT-055")
+        self.assertEqual(
+            search["records"][0]["work_id"],
+            "150-MW-AKOLA-SITE-ACL-B11-0055",
+        )
+        self.assertIn("ROUTE-055", search["records"][0]["identity_details_text"])
+
     def test_every_excel_checklist_can_save_all_observation_fields(self):
         database = FakeFirestore()
         user = {"email": "qa@example.com", "uid": "qa-user"}
@@ -907,8 +976,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Vendor / Manufacturer",
             b"In progress",
             b"Not started",
-            b"Unique equipment",
-            b"Search equipment, specification or vendor",
+            b"Unique identities",
+            b"Search Work ID, equipment, route, specification or vendor",
             b"summary-grid equipment-type-summary",
             b"Smart QA/QC tracking",
             b"Checklist bottlenecks",

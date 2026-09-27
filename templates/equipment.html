@@ -11,7 +11,7 @@
         {{ equipment.project_display_name or (equipment.project | scope_name) }} / Block {{ equipment.block | block_label }}
       </p>
       <h1 class="equipment-title mb-1">{{ equipment.template_name }}</h1>
-      <p class="equipment-record-id mb-0">Record {{ equipment.record_number }} · {{ equipment.format_no }}</p>
+      <p class="equipment-record-id mb-0">{{ equipment.work_id }} · Record {{ equipment.record_number }} · {{ equipment.format_no }}</p>
     </div>
     <div class="structure-header-actions">
       {% if can_edit_equipment %}
@@ -39,11 +39,15 @@
 
   <section class="equipment-identity-banner" aria-label="Equipment identity">
     <div>
-      <span>Equipment / Circuit ID</span>
+      <span>Work ID</span>
+      <strong>{{ equipment.work_id }}</strong>
+    </div>
+    <div>
+      <span>{{ equipment.identity_profile.primary_label }}</span>
       <strong id="equipmentIdentificationHeader">{{ equipment.equipment_identification or "Not set" }}</strong>
     </div>
     <div>
-      <span>Specification</span>
+      <span>{{ equipment.identity_profile.specification_label }}</span>
       <strong id="equipmentSpecificationHeader">{{ equipment.specification or "Not set" }}</strong>
     </div>
     <div>
@@ -73,17 +77,27 @@
       <strong>{{ equipment.record_number }}</strong>
     </div>
     <div class="structure-info-tile">
-      <span>Equipment / Circuit ID</span>
+      <span>Work ID</span>
+      <strong>{{ equipment.work_id }}</strong>
+    </div>
+    <div class="structure-info-tile">
+      <span>{{ equipment.identity_profile.primary_label }}</span>
       <strong id="equipmentIdentificationValue">{{ equipment.equipment_identification or "-" }}</strong>
     </div>
     <div class="structure-info-tile">
-      <span>Size / Rating / Specification</span>
+      <span>{{ equipment.identity_profile.specification_label }}</span>
       <strong id="equipmentSpecificationValue">{{ equipment.specification or "-" }}</strong>
     </div>
     <div class="structure-info-tile">
       <span>Vendor / Manufacturer</span>
       <strong id="equipmentVendorValue">{{ equipment.vendor_name or "-" }}</strong>
     </div>
+    {% for field in equipment.identity_profile.fields %}
+      <div class="structure-info-tile">
+        <span>{{ field.label }}</span>
+        <strong data-identity-detail-value="{{ field.key }}">{{ equipment.identity_details.get(field.key) or "-" }}</strong>
+      </div>
+    {% endfor %}
   </section>
 
   {% if can_edit_equipment %}
@@ -97,17 +111,23 @@
       </div>
       <form id="equipmentDetailsForm" class="row g-2 align-items-end">
         <div class="col-12 col-md-4">
-          <label for="equipmentIdentification" class="form-label">Equipment / Circuit ID</label>
-          <input id="equipmentIdentification" class="form-control equipment-detail-input" maxlength="120" value="{{ equipment.equipment_identification }}" placeholder="e.g. SCB-1 or SCB-2">
+          <label for="equipmentIdentification" class="form-label">{{ equipment.identity_profile.primary_label }}</label>
+          <input id="equipmentIdentification" class="form-control equipment-detail-input" maxlength="120" value="{{ equipment.equipment_identification }}" placeholder="{{ equipment.identity_profile.primary_placeholder }}">
         </div>
         <div class="col-12 col-md-4">
-          <label for="equipmentSpecification" class="form-label">Size / Rating / Specification</label>
-          <input id="equipmentSpecification" class="form-control equipment-detail-input" maxlength="160" value="{{ equipment.specification }}" placeholder="e.g. 240 SQMM or 400 SQMM">
+          <label for="equipmentSpecification" class="form-label">{{ equipment.identity_profile.specification_label }}</label>
+          <input id="equipmentSpecification" class="form-control equipment-detail-input" maxlength="160" value="{{ equipment.specification }}" placeholder="{{ equipment.identity_profile.specification_placeholder }}">
         </div>
         <div class="col-12 col-md-4">
           <label for="equipmentVendor" class="form-label">Vendor / Manufacturer</label>
           <input id="equipmentVendor" class="form-control equipment-detail-input" maxlength="120" value="{{ equipment.vendor_name }}" placeholder="Enter vendor name">
         </div>
+        {% for field in equipment.identity_profile.fields %}
+          <div class="col-12 col-md-4">
+            <label for="identityDetail_{{ field.key }}" class="form-label">{{ field.label }}</label>
+            <input id="identityDetail_{{ field.key }}" class="form-control equipment-detail-input" type="{{ field.input_type or 'text' }}" maxlength="160" value="{{ equipment.identity_details.get(field.key, '') }}" placeholder="{{ field.placeholder }}" data-identity-detail-key="{{ field.key }}">
+          </div>
+        {% endfor %}
         <div class="col-12 d-grid d-md-flex justify-content-md-end mt-3">
           <button id="saveEquipmentDetails" class="btn btn-primary" type="submit">
             <i class="bi bi-save" aria-hidden="true"></i>
@@ -269,5 +289,5 @@
   window.statusLabels = {{ status_options | tojson }};
   window.canEditEquipment = {{ can_edit_equipment | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/equipment.js', v='9') }}"></script>
+<script src="{{ url_for('static', filename='js/equipment.js', v='10') }}"></script>
 {% endblock %}

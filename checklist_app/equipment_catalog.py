@@ -2,6 +2,8 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
+from .identity_profiles import get_identity_profile
+
 
 CATALOG_PATH = Path(__file__).resolve().parent / "data" / "equipment_catalog.json"
 
@@ -12,6 +14,7 @@ def get_equipment_catalog():
     templates = payload.get("templates", [])
     for template in templates:
         template["point_count"] = len(template.get("points", []))
+        template["identity_profile"] = get_identity_profile(template)
     return sorted(templates, key=lambda item: (item.get("order", 0), item["name"]))
 
 
