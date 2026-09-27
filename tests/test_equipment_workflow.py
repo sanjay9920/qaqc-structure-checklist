@@ -274,6 +274,8 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b"SCB-1", page.data)
         self.assertIn(b"240 SQMM", page.data)
         self.assertIn(b"Polycab", page.data)
+        self.assertIn(b"equipmentVendorHeader", page.data)
+        self.assertIn(b"Vendor / Manufacturer", page.data)
         self.assertNotIn(b"Cable type verified", page.data)
         self.assertNotIn(b"Save Observation", page.data)
 

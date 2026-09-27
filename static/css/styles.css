@@ -151,14 +151,44 @@ body {
   overflow-wrap: anywhere;
 }
 
-.equipment-identity-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.35rem;
-  color: #243b68;
-  font-size: 0.95rem;
+.equipment-identity-banner {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  width: 100%;
+  margin: 0 0 1rem;
+  overflow: hidden;
+  border: 1px solid #b9cdf9;
+  border-radius: 8px;
+  background: #eef4ff;
+}
+
+.equipment-identity-banner > div {
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.equipment-identity-banner > div + div {
+  border-left: 1px solid #cbd9f6;
+}
+
+.equipment-identity-banner span,
+.equipment-identity-banner strong {
+  display: block;
   overflow-wrap: anywhere;
+}
+
+.equipment-identity-banner span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.equipment-identity-banner strong {
+  margin-top: 0.15rem;
+  color: #17346d;
+  font-size: 1.05rem;
 }
 
 .structure-header-actions {
@@ -798,6 +828,15 @@ body {
 
   .equipment-title {
     font-size: 1.45rem;
+  }
+
+  .equipment-identity-banner {
+    grid-template-columns: 1fr;
+  }
+
+  .equipment-identity-banner > div + div {
+    border-top: 1px solid #cbd9f6;
+    border-left: 0;
   }
 
   .equipment-table-heading {

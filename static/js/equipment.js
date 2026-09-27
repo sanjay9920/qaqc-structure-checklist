@@ -31,8 +31,9 @@
   }
 
   function renderDetails(payload) {
-    setText("equipmentIdentificationHeader", payload.equipment_identification, "Identification not set");
-    setText("equipmentSpecificationHeader", payload.specification, "Specification not set");
+    setText("equipmentIdentificationHeader", payload.equipment_identification, "Not set");
+    setText("equipmentSpecificationHeader", payload.specification, "Not set");
+    setText("equipmentVendorHeader", payload.vendor_name, "Not set");
     setText("equipmentIdentificationValue", payload.equipment_identification, "-");
     setText("equipmentSpecificationValue", payload.specification, "-");
     setText("equipmentVendorValue", payload.vendor_name, "-");

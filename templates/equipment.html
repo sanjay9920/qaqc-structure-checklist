@@ -12,11 +12,6 @@
       </p>
       <h1 class="equipment-title mb-1">{{ equipment.template_name }}</h1>
       <p class="equipment-record-id mb-0">Record {{ equipment.record_number }} · {{ equipment.format_no }}</p>
-      <p class="equipment-identity-line mb-0">
-        <strong id="equipmentIdentificationHeader">{{ equipment.equipment_identification or "Identification not set" }}</strong>
-        <span aria-hidden="true">·</span>
-        <span id="equipmentSpecificationHeader">{{ equipment.specification or "Specification not set" }}</span>
-      </p>
     </div>
     <div class="structure-header-actions">
       {% if can_edit_equipment %}
@@ -39,6 +34,21 @@
       <div class="progress-ring" aria-label="Progress">
         <span id="progressValue">{{ equipment.counts.progress }}%</span>
       </div>
+    </div>
+  </section>
+
+  <section class="equipment-identity-banner" aria-label="Equipment identity">
+    <div>
+      <span>Equipment / Circuit ID</span>
+      <strong id="equipmentIdentificationHeader">{{ equipment.equipment_identification or "Not set" }}</strong>
+    </div>
+    <div>
+      <span>Specification</span>
+      <strong id="equipmentSpecificationHeader">{{ equipment.specification or "Not set" }}</strong>
+    </div>
+    <div>
+      <span>Vendor / Manufacturer</span>
+      <strong id="equipmentVendorHeader">{{ equipment.vendor_name or "Not set" }}</strong>
     </div>
   </section>
 
@@ -259,5 +269,5 @@
   window.statusLabels = {{ status_options | tojson }};
   window.canEditEquipment = {{ can_edit_equipment | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/equipment.js') }}"></script>
+<script src="{{ url_for('static', filename='js/equipment.js', v='9') }}"></script>
 {% endblock %}
