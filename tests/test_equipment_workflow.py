@@ -20,6 +20,7 @@ from checklist_app.equipment_services import (
     update_equipment_status,
 )
 from checklist_app.exports import export_all_xlsx, export_equipment_csv
+from checklist_app.services import delete_project
 
 
 class FakeSnapshot:
@@ -492,6 +493,50 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(block["equipment_total_records"], 2)
         self.assertEqual(block["equipment_pending_records"], 2)
         self.assertEqual(block["work_progress"], 3)
+
+    def test_admin_project_delete_cascades_related_data(self):
+        database = FakeFirestore()
+        project_id = "150-MW-AKOLA-SITE"
+        structure_id = f"{project_id}-BLOCK-1-STR-01"
+        database.collection("projects").document(project_id).set(
+            {"project_id": project_id}
+        )
+        database.collection("structures").document(structure_id).set(
+            {"project": project_id, "block": "BLOCK-1"}
+        )
+        database.collection("equipment_checklists").document("equipment-1").set(
+            {"project": project_id, "block": "BLOCK-1"}
+        )
+        database.collection("history").document("history-1").set(
+            {"project": project_id, "structure_id": structure_id}
+        )
+        database.collection("equipment_history").document("equipment-history-1").set(
+            {"project": project_id, "equipment_id": "equipment-1"}
+        )
+
+        deleted = delete_project(database, project_id, cascade=True)
+
+        self.assertEqual(deleted["structures_deleted"], 1)
+        self.assertEqual(deleted["equipment_deleted"], 1)
+        self.assertFalse(database.collection("projects").document(project_id).get().exists)
+        self.assertFalse(
+            database.collection("structures").document(structure_id).get().exists
+        )
+        self.assertFalse(
+            database.collection("equipment_checklists")
+            .document("equipment-1")
+            .get()
+            .exists
+        )
+        self.assertFalse(
+            database.collection("history").document("history-1").get().exists
+        )
+        self.assertFalse(
+            database.collection("equipment_history")
+            .document("equipment-history-1")
+            .get()
+            .exists
+        )
 
     def test_checklist_dashboard_supports_multiple_equipment_records(self):
         database, _user, record, _transformer = build_fixture()

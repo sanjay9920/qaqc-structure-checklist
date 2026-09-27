@@ -433,12 +433,12 @@ def update_project_block_structure_count(
     }
 
 
-def delete_project(db, project_id):
+def delete_project(db, project_id, cascade=False):
     project_id = normalize_project(project_id)
     if not project_id:
         raise ValueError("Project is required.")
 
-    structure_count = 0
+    structure_snapshots = []
     for snap in db.collection("structures").stream():
         data = snap.to_dict() or {}
         scope = infer_scope_from_structure_id(snap.id)
@@ -447,27 +447,68 @@ def delete_project(db, project_id):
             data.get("block") or scope["block"],
         )
         if structure_project == project_id:
-            structure_count += 1
+            structure_snapshots.append(snap)
 
-    if structure_count:
+    if structure_snapshots and not cascade:
         raise ValueError(
-            f"Project has {structure_count} structures. Delete those structures first."
+            f"Project has {len(structure_snapshots)} structures. Delete those structures first."
         )
 
-    equipment_count = 0
+    equipment_snapshots = []
     for snap in db.collection("equipment_checklists").stream():
         data = snap.to_dict() or {}
         if normalize_project(data.get("project")) == project_id:
-            equipment_count += 1
-    if equipment_count:
+            equipment_snapshots.append(snap)
+
+    if equipment_snapshots and not cascade:
         raise ValueError(
-            f"Project has {equipment_count} equipment checklists. Delete those checklists first."
+            f"Project has {len(equipment_snapshots)} equipment checklists. Delete those checklists first."
         )
+
+    if cascade:
+        structure_ids = {snap.id for snap in structure_snapshots}
+        equipment_ids = {snap.id for snap in equipment_snapshots}
+        batch = db.batch()
+        pending = 0
+
+        def queue_delete(reference):
+            nonlocal batch, pending
+            batch.delete(reference)
+            pending += 1
+            if pending >= 450:
+                batch.commit()
+                batch = db.batch()
+                pending = 0
+
+        for snap in structure_snapshots:
+            queue_delete(snap.reference)
+        for snap in equipment_snapshots:
+            queue_delete(snap.reference)
+        for snap in db.collection("history").stream():
+            data = snap.to_dict() or {}
+            if (
+                normalize_project(data.get("project")) == project_id
+                or data.get("structure_id") in structure_ids
+            ):
+                queue_delete(snap.reference)
+        for snap in db.collection("equipment_history").stream():
+            data = snap.to_dict() or {}
+            if (
+                normalize_project(data.get("project")) == project_id
+                or data.get("equipment_id") in equipment_ids
+            ):
+                queue_delete(snap.reference)
+        if pending:
+            batch.commit()
 
     ref = db.collection("projects").document(project_id)
     if ref.get().exists:
         ref.delete()
-    return {"project_id": project_id}
+    return {
+        "project_id": project_id,
+        "structures_deleted": len(structure_snapshots) if cascade else 0,
+        "equipment_deleted": len(equipment_snapshots) if cascade else 0,
+    }
 
 
 def create_structure(db, structure_id, created_by, base_url=None, block=None, project=None):

@@ -1330,7 +1330,7 @@ def create_app():
         )
 
     @app.post("/admin/projects/<project_id>/rename")
-    @login_required
+    @admin_required
     def admin_rename_project(project_id):
         access_error = require_project_access(project_id)
         if access_error:
@@ -1349,7 +1349,7 @@ def create_app():
         return redirect(url_for("admin_dashboard", project=project_data["project_id"]))
 
     @app.post("/admin/projects/<project_id>/blocks")
-    @login_required
+    @admin_required
     def admin_update_project_blocks(project_id):
         access_error = require_project_access(project_id)
         if access_error:
@@ -1503,19 +1503,24 @@ def create_app():
         )
 
     @app.post("/admin/projects/<project_id>/delete")
-    @login_required
+    @admin_required
     def admin_delete_project(project_id):
         access_error = require_project_access(project_id)
         if access_error:
             return access_error
         try:
-            deleted = delete_project(db(), project_id)
+            deleted = delete_project(db(), project_id, cascade=True)
         except ValueError as exc:
             flash(str(exc), "danger")
             return redirect(url_for("admin_dashboard", project=project_id))
 
         clear_dashboard_cache()
-        flash(f"Project {deleted['project_id']} deleted.", "success")
+        flash(
+            f"Project {deleted['project_id']} deleted with "
+            f"{deleted['structures_deleted']} structures and "
+            f"{deleted['equipment_deleted']} equipment checklists.",
+            "success",
+        )
         return redirect(url_for("admin_dashboard"))
 
     @app.post("/admin/structures")
