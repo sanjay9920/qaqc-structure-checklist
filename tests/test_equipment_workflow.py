@@ -381,6 +381,23 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(get_active_checklist_items(database), [])
         self.assertEqual(len(database.data["checklist_items"]), 0)
 
+    def test_removed_checklist_items_are_not_shown_on_admin_page(self):
+        database = FakeFirestore()
+        database.collection("checklist_items").document("active-item").set(
+            {"label": "Active point", "order": 10, "active": True}
+        )
+        database.collection("checklist_items").document("removed-item").set(
+            {"label": "Old removed point", "order": 20, "active": False}
+        )
+        client = build_test_app(database, logged_in=True).test_client()
+
+        page = client.get("/admin/checklist-items")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b"Active point", page.data)
+        self.assertNotIn(b"Old removed point", page.data)
+        self.assertNotIn(b">Removed<", page.data)
+
     def test_create_update_export_and_delete(self):
         database, user, record, _transformer = build_fixture()
         self.assertEqual(record["counts"]["completed"], 1)

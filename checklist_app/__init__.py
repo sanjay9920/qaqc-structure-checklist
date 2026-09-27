@@ -1732,7 +1732,7 @@ def create_app():
                 flash("Checklist item added.", "success")
             return redirect(url_for("admin_checklist_items"))
 
-        items = get_active_checklist_items(db(), include_inactive=True)
+        items = get_active_checklist_items(db())
         return render_template("admin/checklist_items.html", items=items)
 
     @app.post("/admin/checklist-items/<item_id>/remove")

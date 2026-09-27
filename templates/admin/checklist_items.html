@@ -34,7 +34,7 @@
     </thead>
     <tbody>
       {% for item in items %}
-        <tr class="{% if not item.active %}text-muted{% endif %}">
+        <tr>
           <td>{{ item.order }}</td>
           <td>
             <form action="{{ url_for('admin_rename_checklist_item', item_id=item.item_id) }}" method="post" class="input-group">
@@ -46,11 +46,7 @@
             </form>
           </td>
           <td>
-            {% if item.active %}
-              <span class="badge text-bg-success">Active</span>
-            {% else %}
-              <span class="badge text-bg-secondary">Removed</span>
-            {% endif %}
+            <span class="badge text-bg-success">Active</span>
           </td>
           <td class="text-end">
             <form
@@ -65,6 +61,10 @@
               </button>
             </form>
           </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">No active checklist items. Add a new inspection point above.</td>
         </tr>
       {% endfor %}
     </tbody>
