@@ -390,6 +390,39 @@ def build_equipment_summary(records):
     }
 
 
+def get_next_equipment_record_number(records):
+    used_numbers = {
+        int(record.get("record_number", ""))
+        for record in (records or [])
+        if str(record.get("record_number", "")).isdigit()
+        and int(record.get("record_number", "")) > 0
+    }
+    number = 1
+    while number in used_numbers:
+        number += 1
+    return str(number).zfill(2)
+
+
+def build_equipment_template_summaries(templates, records):
+    records_by_template = {}
+    for record in records or []:
+        records_by_template.setdefault(record.get("template_id", ""), []).append(record)
+
+    summaries = []
+    for template in templates or []:
+        template_records = records_by_template.get(template.get("template_id", ""), [])
+        summaries.append(
+            {
+                **template,
+                **build_equipment_summary(template_records),
+                "next_record_number": get_next_equipment_record_number(
+                    template_records
+                ),
+            }
+        )
+    return summaries
+
+
 def _equipment_item_update(
     db,
     equipment_id,

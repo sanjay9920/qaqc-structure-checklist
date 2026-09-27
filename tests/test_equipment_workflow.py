@@ -7,9 +7,11 @@ from openpyxl import load_workbook
 import checklist_app as app_module
 from checklist_app.equipment_catalog import get_equipment_catalog, get_equipment_template
 from checklist_app.equipment_services import (
+    build_equipment_template_summaries,
     create_equipment_checklist,
     delete_equipment_checklist,
     get_equipment_history,
+    get_next_equipment_record_number,
     list_equipment_checklists,
     update_equipment_final_remark,
     update_equipment_details,
@@ -421,10 +423,11 @@ class EquipmentWorkflowTests(unittest.TestCase):
             b"Cable Laying",
             b"12 points",
             b"Completed points",
-            b"Equipment / Circuit ID",
             b"SCB-1",
             b"240 SQMM",
-            b"Vendor / Manufacturer",
+            b"Checklist dashboards",
+            b"44 dashboards",
+            b"Open Dashboard",
         ]:
             self.assertIn(expected, page.data)
 
@@ -433,6 +436,70 @@ class EquipmentWorkflowTests(unittest.TestCase):
         ).get_json()
         self.assertEqual(payload["equipment_summary"]["total_records"], 2)
         self.assertEqual(payload["equipment_records"][0]["equipment_id"], record["equipment_id"])
+        self.assertEqual(len(payload["equipment_template_summaries"]), 44)
+
+    def test_checklist_dashboard_supports_multiple_equipment_records(self):
+        database, _user, record, _transformer = build_fixture()
+        client = build_test_app(database, logged_in=True).test_client()
+        dashboard_url = (
+            "/admin/equipment-dashboard/cable-laying"
+            "?project=100-MW-AKOLA-SITE&block=BLOCK-1"
+        )
+
+        page = client.get(dashboard_url)
+        self.assertEqual(page.status_code, 200)
+        for expected in [
+            b"Cable Laying",
+            b"SCB-1",
+            b"240 SQMM",
+            b"Polycab",
+            b'value="02"',
+            b"Vendor / Manufacturer",
+        ]:
+            self.assertIn(expected, page.data)
+
+        created = client.post(
+            "/admin/equipment",
+            data={
+                "project": "100-MW-AKOLA-SITE",
+                "block": "BLOCK-1",
+                "template_id": "cable-laying",
+                "record_number": "",
+                "equipment_identification": "SCB-2",
+                "specification": "400 SQMM",
+                "vendor_name": "KEI",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 302)
+        self.assertIn("CABLE-LAYING-02", created.headers["Location"])
+
+        payload = client.get(
+            "/admin/api/equipment-dashboard/cable-laying"
+            "?project=100-MW-AKOLA-SITE&block=BLOCK-1"
+        ).get_json()
+        self.assertEqual(payload["summary"]["total_records"], 2)
+        self.assertEqual(payload["summary"]["pending_records"], 2)
+        self.assertEqual(payload["next_record_number"], "03")
+        scb_two = next(
+            item
+            for item in payload["records"]
+            if item["equipment_identification"] == "SCB-2"
+        )
+        self.assertEqual(scb_two["record_number"], "02")
+        self.assertEqual(scb_two["specification"], "400 SQMM")
+        self.assertEqual(scb_two["vendor_name"], "KEI")
+
+        summaries = build_equipment_template_summaries(
+            get_equipment_catalog(), payload["records"]
+        )
+        cable_summary = next(
+            item for item in summaries if item["template_id"] == "cable-laying"
+        )
+        self.assertEqual(cable_summary["total_records"], 2)
+        self.assertEqual(
+            get_next_equipment_record_number(payload["records"]), "03"
+        )
 
     def test_security_headers_safe_redirect_and_missing_structure_qr(self):
         database, _user, _record, _transformer = build_fixture()

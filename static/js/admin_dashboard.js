@@ -2,6 +2,7 @@
   const config = window.adminDashboard || {};
   const tableBody = document.getElementById("structuresTableBody");
   const equipmentTableBody = document.getElementById("equipmentTableBody");
+  const equipmentDashboardTableBody = document.getElementById("equipmentDashboardTableBody");
   const blockSummaryBody = document.getElementById("blockSummaryBody");
   const searchForm = document.querySelector(".search-row");
   const totalBlocksEl = document.getElementById("totalBlocks");
@@ -29,6 +30,8 @@
   const blockOpenSelect = document.getElementById("block_open_select");
   const structureOpenSelect = document.getElementById("structure_open_select");
   const equipmentRecordInput = document.getElementById("equipment_record_number");
+  const equipmentTemplateSelect = document.getElementById("equipment_template_id");
+  const equipmentDashboardOpenForm = document.getElementById("equipmentDashboardOpenForm");
   const equipmentTotalRecordsEl = document.getElementById("equipmentTotalRecords");
   const equipmentCompletedRecordsEl = document.getElementById("equipmentCompletedRecords");
   const equipmentPendingRecordsEl = document.getElementById("equipmentPendingRecords");
@@ -365,6 +368,33 @@
       : `<tr><td colspan="6" class="text-center text-muted py-4">No equipment checklist created in this block.</td></tr>`;
   }
 
+  function renderEquipmentTemplateSummaries(items, project, block) {
+    if (!equipmentDashboardTableBody) return;
+    const rows = Array.isArray(items) ? items : [];
+    equipmentDashboardTableBody.innerHTML = rows.map(function (item) {
+      const progress = item.progress || 0;
+      const dashboardUrl = `/admin/equipment-dashboard/${encodeURIComponent(item.template_id || "")}?project=${encodeURIComponent(project || "")}&block=${encodeURIComponent(block || "")}`;
+      return `
+        <tr>
+          <td>
+            <strong>${escapeHtml(item.name || "Checklist")}</strong>
+            <small class="d-block text-muted">${escapeHtml(item.format_no || "")} · ${item.point_count || 0} points</small>
+          </td>
+          <td>${item.total_records || 0}</td>
+          <td>${item.completed_records || 0}</td>
+          <td>${item.pending_records || 0}</td>
+          <td>
+            <div class="progress table-progress"><div class="progress-bar" style="width: ${progress}%"></div></div>
+            <span class="small text-muted">${item.completed_points || 0} / ${item.total_points || 0} points · ${progress}%</span>
+          </td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="${dashboardUrl}"><i class="bi bi-speedometer2" aria-hidden="true"></i> Dashboard</a>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
   function renderDashboard(payload) {
     const summary = payload.project_summary || {};
     renderProjectOptions(payload.project_records || payload.projects, payload.project || "");
@@ -374,6 +404,11 @@
     renderDashboardScope(payload);
     renderEquipmentSummary(payload.equipment_summary || {});
     renderEquipmentRecords(payload.equipment_records || []);
+    renderEquipmentTemplateSummaries(
+      payload.equipment_template_summaries || [],
+      payload.project || "",
+      payload.block || ""
+    );
 
     if (!tableBody) return;
 
@@ -544,6 +579,20 @@
         form.submit();
       }
     });
+  }
+
+  function openSelectedEquipmentDashboard() {
+    if (!equipmentTemplateSelect || !equipmentTemplateSelect.value) return;
+    const url = `/admin/equipment-dashboard/${encodeURIComponent(equipmentTemplateSelect.value)}?project=${encodeURIComponent(config.project || "")}&block=${encodeURIComponent(config.block || "")}`;
+    window.location.assign(url);
+  }
+
+  if (equipmentDashboardOpenForm && equipmentTemplateSelect) {
+    equipmentDashboardOpenForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      openSelectedEquipmentDashboard();
+    });
+    equipmentTemplateSelect.addEventListener("change", openSelectedEquipmentDashboard);
   }
 
   [projectFilterInput, blockFilterInput].forEach((input) => {

@@ -35,10 +35,12 @@ from .exports import (
 from .equipment_catalog import get_equipment_catalog
 from .equipment_services import (
     build_equipment_summary,
+    build_equipment_template_summaries,
     create_equipment_checklist,
     delete_equipment_checklist,
     get_equipment_checklist,
     get_equipment_history,
+    get_next_equipment_record_number,
     list_equipment_checklists,
     normalize_equipment_id,
     update_equipment_final_remark,
@@ -584,6 +586,9 @@ def create_app():
             "structures": structures,
             "equipment_records": equipment_records,
             "equipment_summary": build_equipment_summary(equipment_records),
+            "equipment_template_summaries": build_equipment_template_summaries(
+                get_equipment_catalog(), equipment_records
+            ),
             "total": total,
             "completed": completed,
             "pending": pending,
@@ -859,6 +864,70 @@ def create_app():
             as_attachment=request.args.get("download") == "1",
             download_name=f"{normalized_id}.png",
         )
+
+    def equipment_dashboard_payload(project_id, block_id, template_id):
+        template_id = (template_id or "").strip().lower()
+        template = next(
+            (
+                item
+                for item in get_equipment_catalog()
+                if item.get("template_id") == template_id
+            ),
+            None,
+        )
+        if not template:
+            return None
+        records = [
+            record
+            for record in list_equipment_checklists(
+                db(), project=project_id, block=block_id
+            )
+            if record.get("template_id") == template_id
+        ]
+        return {
+            "project": project_id,
+            "block": block_id,
+            "template": template,
+            "records": records,
+            "summary": build_equipment_summary(records),
+            "next_record_number": get_next_equipment_record_number(records),
+        }
+
+    @app.get("/admin/equipment-dashboard/<template_id>")
+    @login_required
+    def admin_equipment_dashboard(template_id):
+        project_id, block_id = normalize_scope(
+            request.args.get("project", ""), request.args.get("block", "")
+        )
+        access_error = require_project_access(project_id)
+        if access_error:
+            return access_error
+        if not block_id:
+            flash("Select a block before opening a checklist dashboard.", "warning")
+            return redirect(url_for("admin_dashboard", project=project_id))
+        payload = equipment_dashboard_payload(project_id, block_id, template_id)
+        if not payload:
+            return render_template("not_found.html", structure_id=template_id), 404
+        return render_template(
+            "admin/equipment_dashboard.html",
+            **payload,
+            project_display_name=get_project_display_name(db(), project_id),
+        )
+
+    @app.get("/admin/api/equipment-dashboard/<template_id>")
+    @login_required
+    def admin_equipment_dashboard_api(template_id):
+        project_id, block_id = normalize_scope(
+            request.args.get("project", ""), request.args.get("block", "")
+        )
+        if not project_id or not block_id:
+            return jsonify({"error": "Project and block are required."}), 400
+        if not user_can_access_project(g.user, project_id):
+            return jsonify({"error": "You do not have access to this project."}), 403
+        payload = equipment_dashboard_payload(project_id, block_id, template_id)
+        if not payload:
+            return jsonify({"error": "Checklist dashboard not found."}), 404
+        return jsonify(payload)
 
     @app.get("/api/equipment/<equipment_id>")
     def api_equipment(equipment_id):
@@ -1211,6 +1280,9 @@ def create_app():
             equipment_templates=get_equipment_catalog(),
             equipment_records=payload["equipment_records"],
             equipment_summary=payload["equipment_summary"],
+            equipment_template_summaries=payload[
+                "equipment_template_summaries"
+            ],
         )
 
     @app.get("/admin/api/structures")
@@ -1366,13 +1438,24 @@ def create_app():
         access_error = require_project_access(project_id)
         if access_error:
             return access_error
+        template_id = request.form.get("template_id", "").strip()
+        record_number = request.form.get("record_number", "").strip()
+        if not record_number:
+            template_records = [
+                record
+                for record in list_equipment_checklists(
+                    db(), project=project_id, block=block_id
+                )
+                if record.get("template_id") == template_id
+            ]
+            record_number = get_next_equipment_record_number(template_records)
         try:
             equipment = create_equipment_checklist(
                 db(),
                 project_id,
                 block_id,
-                request.form.get("template_id", "").strip(),
-                request.form.get("record_number", "01").strip(),
+                template_id,
+                record_number,
                 g.user["email"],
                 base_url=public_base_url(),
                 vendor_name=request.form.get("vendor_name", ""),

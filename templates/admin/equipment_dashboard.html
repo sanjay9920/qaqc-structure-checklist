@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.name }} Dashboard - Quality Department{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div>
+    <p class="eyebrow mb-1">Quality Department Checklist Dashboard</p>
+    <h1 class="h3 mb-1">{{ template.name }}</h1>
+    <p class="dashboard-scope mb-0">{{ project_display_name }} / Block {{ block | block_label }} / {{ template.format_no }}</p>
+    <p class="dashboard-tagline mb-0">Create and track every equipment record for this checklist type.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=project, block=block) }}">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>
+      Block Dashboard
+    </a>
+    <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=project) }}">
+      <i class="bi bi-speedometer2" aria-hidden="true"></i>
+      Project Dashboard
+    </a>
+    <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard') }}">
+      <i class="bi bi-house" aria-hidden="true"></i>
+      Home
+    </a>
+  </div>
+</div>
+
+<section class="summary-grid equipment-type-summary" aria-label="Checklist dashboard summary">
+  <div class="summary-tile">
+    <span class="summary-label">Equipment records</span>
+    <strong id="typeTotalRecords">{{ summary.total_records }}</strong>
+  </div>
+  <div class="summary-tile">
+    <span class="summary-label">Fully completed</span>
+    <strong id="typeCompletedRecords">{{ summary.completed_records }}</strong>
+  </div>
+  <div class="summary-tile">
+    <span class="summary-label">With pending work</span>
+    <strong id="typePendingRecords">{{ summary.pending_records }}</strong>
+  </div>
+  <div class="summary-tile">
+    <span class="summary-label">Completed points</span>
+    <strong><span id="typeCompletedPoints">{{ summary.completed_points }}</span> / <span id="typeTotalPointsA">{{ summary.total_points }}</span></strong>
+  </div>
+  <div class="summary-tile">
+    <span class="summary-label">Pending points</span>
+    <strong><span id="typePendingPoints">{{ summary.pending_points }}</span> / <span id="typeTotalPointsB">{{ summary.total_points }}</span></strong>
+  </div>
+  <div class="summary-tile">
+    <span class="summary-label">Overall progress</span>
+    <strong id="typeProgress">{{ summary.progress }}%</strong>
+  </div>
+</section>
+
+<section class="admin-panel mb-3" aria-labelledby="createEquipmentTitle">
+  <div class="section-title-row">
+    <div>
+      <p class="eyebrow mb-1">New {{ template.name }} record</p>
+      <h2 id="createEquipmentTitle" class="h5 mb-0">Add equipment</h2>
+    </div>
+    <span class="catalog-count">{{ template.point_count }} checklist points</span>
+  </div>
+  <form action="{{ url_for('admin_create_equipment') }}" method="post" class="row g-2 align-items-end">
+    <input type="hidden" name="project" value="{{ project }}">
+    <input type="hidden" name="block" value="{{ block }}">
+    <input type="hidden" name="template_id" value="{{ template.template_id }}">
+    <div class="col-5 col-lg-2">
+      <label for="equipment_record_number" class="form-label">Record No.</label>
+      <input id="equipment_record_number" name="record_number" class="form-control" value="{{ next_record_number }}" maxlength="30" required>
+    </div>
+    <div class="col-7 col-lg-3">
+      <label for="equipment_identification" class="form-label">Equipment / Circuit ID</label>
+      <input id="equipment_identification" name="equipment_identification" class="form-control" maxlength="120" placeholder="e.g. SCB-1 or SCB-2" required>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <label for="equipment_specification" class="form-label">Size / Rating / Specification</label>
+      <input id="equipment_specification" name="specification" class="form-control" maxlength="160" placeholder="e.g. 240 SQMM or 400 SQMM">
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <label for="equipment_vendor_name" class="form-label">Vendor / Manufacturer</label>
+      <input id="equipment_vendor_name" name="vendor_name" class="form-control" maxlength="120" placeholder="Enter vendor name">
+    </div>
+    <div class="col-12 col-lg-1 d-grid">
+      <button class="btn btn-primary" type="submit" title="Create equipment checklist">
+        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+        <span class="d-lg-none">Create</span>
+      </button>
+    </div>
+  </form>
+</section>
+
+<section class="admin-table mb-3" aria-labelledby="equipmentRecordsTitle">
+  <div class="equipment-table-heading">
+    <div>
+      <p class="eyebrow mb-1">{{ template.name }}</p>
+      <h2 id="equipmentRecordsTitle" class="h5 mb-0">Equipment records</h2>
+    </div>
+    <span id="equipmentDashboardRefreshStatus" class="dashboard-scope">Auto-updates every 30 seconds</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Record</th>
+          <th>Equipment / Circuit</th>
+          <th>Specification</th>
+          <th>Vendor</th>
+          <th>Completed</th>
+          <th>Pending</th>
+          <th>Progress</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="equipmentTypeRecordsBody">
+        {% for record in records %}
+          <tr>
+            <td>{{ record.record_number }}</td>
+            <td><strong>{{ record.equipment_identification or "Not set" }}</strong></td>
+            <td>{{ record.specification or "-" }}</td>
+            <td>{{ record.vendor_name or "-" }}</td>
+            <td>{{ record.counts.completed }} / {{ record.counts.total }}</td>
+            <td>{{ record.counts.pending }} / {{ record.counts.total }}</td>
+            <td>
+              <div class="progress table-progress"><div class="progress-bar" style="width: {{ record.counts.progress }}%"></div></div>
+              <span class="small text-muted">{{ record.counts.progress }}%</span>
+            </td>
+            <td class="text-end">
+              <div class="table-actions">
+                <a class="btn btn-sm btn-outline-dark" href="{{ url_for('equipment_page', equipment_id=record.equipment_id) }}"><i class="bi bi-eye" aria-hidden="true"></i> Open</a>
+                <a class="btn btn-sm btn-outline-dark" href="{{ url_for('equipment_qr', equipment_id=record.equipment_id, download=1) }}" download="{{ record.equipment_id }}.png"><i class="bi bi-download" aria-hidden="true"></i> QR</a>
+                <form action="{{ url_for('admin_delete_equipment', equipment_id=record.equipment_id) }}" method="post" class="delete-equipment-form d-inline" data-equipment-id="{{ record.equipment_id }}">
+                  <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No equipment created. Add the first record above.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.equipmentTypeDashboard = {
+    apiUrl: {{ url_for('admin_equipment_dashboard_api', template_id=template.template_id, project=project, block=block) | tojson }},
+    templateId: {{ template.template_id | tojson }}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/equipment_dashboard.js') }}"></script>
+{% endblock %}

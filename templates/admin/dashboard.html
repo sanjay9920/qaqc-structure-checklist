@@ -419,46 +419,76 @@
       <div class="section-title-row">
         <div>
           <p class="eyebrow mb-1">Excel checklist library</p>
-          <h2 class="h5 mb-1">Open equipment / activity checklist</h2>
-          <p class="dashboard-scope mb-0">Select checklist type and record number for Block {{ block | block_label }}.</p>
+          <h2 class="h5 mb-1">Open checklist dashboard</h2>
+          <p class="dashboard-scope mb-0">Select a checklist type to create and track its equipment records.</p>
         </div>
         <span class="catalog-count">{{ equipment_templates | length }} types</span>
       </div>
-      <form action="{{ url_for('admin_create_equipment') }}" method="post" class="row g-2 align-items-end">
-        <input type="hidden" name="project" value="{{ project }}">
-        <input type="hidden" name="block" value="{{ block }}">
-        <div class="col-12 col-lg-6">
+      <form id="equipmentDashboardOpenForm" class="row g-2 align-items-end">
+        <div class="col-12 col-md-9">
           <label for="equipment_template_id" class="form-label">Checklist type</label>
           <select id="equipment_template_id" name="template_id" class="form-select" required>
             <option value="">Select checklist</option>
-            {% for template in equipment_templates %}
-              <option value="{{ template.template_id }}">{{ template.name }} | {{ template.format_no }} | {{ template.point_count }} points</option>
+            {% for template in equipment_template_summaries %}
+              <option value="{{ template.template_id }}">{{ template.name }} | {{ template.format_no }} | {{ template.point_count }} points | {{ template.total_records }} records</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-5 col-lg-2">
-          <label for="equipment_record_number" class="form-label">Record No.</label>
-          <input id="equipment_record_number" name="record_number" class="form-control" value="01" maxlength="30" required>
-        </div>
-        <div class="col-7 col-lg-4">
-          <label for="equipment_identification" class="form-label">Equipment / Circuit ID</label>
-          <input id="equipment_identification" name="equipment_identification" class="form-control" maxlength="120" placeholder="e.g. SCB-1">
-        </div>
-        <div class="col-12 col-md-6">
-          <label for="equipment_specification" class="form-label">Size / Rating / Specification</label>
-          <input id="equipment_specification" name="specification" class="form-control" maxlength="160" placeholder="e.g. 240 SQMM or 400 SQMM">
-        </div>
-        <div class="col-12 col-md-4">
-          <label for="equipment_vendor_name" class="form-label">Vendor / Manufacturer</label>
-          <input id="equipment_vendor_name" name="vendor_name" class="form-control" maxlength="120" placeholder="Enter vendor name">
-        </div>
-        <div class="col-12 col-md-2 d-grid">
+        <div class="col-12 col-md-3 d-grid">
           <button class="btn btn-primary" type="submit">
-            <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
-            Create / Open
+            <i class="bi bi-speedometer2" aria-hidden="true"></i>
+            Open Dashboard
           </button>
         </div>
       </form>
+    </section>
+
+    <section class="admin-table equipment-dashboard-directory mb-3" aria-labelledby="equipmentDashboardDirectoryTitle">
+      <div class="equipment-table-heading">
+        <div>
+          <p class="eyebrow mb-1">Block {{ block | block_label }}</p>
+          <h2 id="equipmentDashboardDirectoryTitle" class="h5 mb-0">Checklist dashboards</h2>
+          <p class="dashboard-scope mb-0">Open any checklist type to create and track multiple equipment records.</p>
+        </div>
+        <span class="catalog-count">{{ equipment_template_summaries | length }} dashboards</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Checklist type</th>
+              <th>Equipment</th>
+              <th>Completed</th>
+              <th>Pending</th>
+              <th>Points progress</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody id="equipmentDashboardTableBody">
+            {% for item in equipment_template_summaries %}
+              <tr>
+                <td>
+                  <strong>{{ item.name }}</strong>
+                  <small class="d-block text-muted">{{ item.format_no }} · {{ item.point_count }} points</small>
+                </td>
+                <td>{{ item.total_records }}</td>
+                <td>{{ item.completed_records }}</td>
+                <td>{{ item.pending_records }}</td>
+                <td>
+                  <div class="progress table-progress"><div class="progress-bar" style="width: {{ item.progress }}%"></div></div>
+                  <span class="small text-muted">{{ item.completed_points }} / {{ item.total_points }} points · {{ item.progress }}%</span>
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_equipment_dashboard', template_id=item.template_id, project=project, block=block) }}">
+                    <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                    Dashboard
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="admin-table equipment-records-panel mb-3" aria-labelledby="equipmentRecordsTitle">
@@ -627,7 +657,9 @@
 <script>
   window.adminDashboard = {
     apiUrl: {{ url_for("admin_structures_api") | tojson }},
-    structureBaseUrl: {{ url_for("admin_dashboard").rstrip("/") | tojson }}
+    structureBaseUrl: {{ url_for("admin_dashboard").rstrip("/") | tojson }},
+    project: {{ project | tojson }},
+    block: {{ block | tojson }}
   };
 </script>
 <script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>

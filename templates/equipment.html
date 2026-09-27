@@ -20,6 +20,10 @@
     </div>
     <div class="structure-header-actions">
       {% if can_edit_equipment %}
+        <a class="btn btn-outline-primary" href="{{ url_for('admin_equipment_dashboard', template_id=equipment.template_id, project=equipment.project, block=equipment.block) }}">
+          <i class="bi bi-collection" aria-hidden="true"></i>
+          {{ equipment.template_name }} Dashboard
+        </a>
         <a class="btn btn-outline-dark" href="{{ url_for('admin_dashboard', project=equipment.project, block=equipment.block) }}">
           <i class="bi bi-speedometer2" aria-hidden="true"></i>
           Block {{ equipment.block | block_label }}

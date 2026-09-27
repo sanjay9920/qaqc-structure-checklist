@@ -286,10 +286,10 @@ To use an electrical/equipment checklist:
 
 1. Open a project dashboard.
 2. Select a block.
-3. Select the checklist type, such as Cable Laying or Transformer Installation.
-4. Enter a record number, equipment/circuit ID such as `SCB-1`, specification such as `240 SQMM`, and vendor name.
-5. Click `Create / Open`. These details can also be edited and saved at the top of the checklist page.
-6. Update each point status, Excel-format observation/measurement fields and remark, then download that record's QR.
+3. Open one of the 44 checklist dashboards, such as Cable Laying or Transformer Installation.
+4. The dashboard assigns the next record number automatically. Enter an equipment/circuit ID such as `SCB-1`, specification such as `240 SQMM`, and vendor name.
+5. Create as many records as needed, for example `SCB-1`, `SCB-2` and `SCB-3`. Each record has independent progress, history and QR code.
+6. Update each point status, Excel-format observation/measurement fields and remark. Equipment identification, specification and vendor can also be edited from the checklist page.
 
 To rebuild the checklist catalog from the source workbook:
 
@@ -421,6 +421,8 @@ POST /api/equipment/<equipment_id>/items/<item_id>/value
 POST /api/equipment/<equipment_id>/items/<item_id>/measurements
 POST /api/equipment/<equipment_id>/details
 GET  /admin
+GET  /admin/equipment-dashboard/<template_id>
+GET  /admin/api/equipment-dashboard/<template_id>
 POST /admin/equipment
 POST /admin/equipment/<equipment_id>/delete
 POST /admin/structures
