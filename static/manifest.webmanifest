@@ -1,29 +1,32 @@
 {
   "name": "Quality Department - QA/QC Inspection Management System",
   "short_name": "Quality SIMS",
+  "id": "/",
   "description": "Structure, electrical and equipment inspection checklists with QR access and progress tracking.",
-  "start_url": "/login",
+  "start_url": "/?source=pwa",
   "scope": "/",
+  "lang": "en-IN",
   "display": "standalone",
   "background_color": "#f5f7fb",
   "theme_color": "#2457d6",
   "orientation": "portrait",
   "categories": ["business", "productivity", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/static/icons/icon-192.png",
+      "src": "/static/icons/qaqc-app-192-v2.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/icons/icon-512.png",
+      "src": "/static/icons/qaqc-app-512-v2.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/icons/icon-maskable-512.png",
+      "src": "/static/icons/qaqc-app-maskable-512-v2.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -36,7 +39,7 @@
       "url": "/login",
       "icons": [
         {
-          "src": "/static/icons/icon-192.png",
+          "src": "/static/icons/qaqc-app-192-v2.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -48,7 +51,7 @@
       "url": "/scan",
       "icons": [
         {
-          "src": "/static/icons/icon-192.png",
+          "src": "/static/icons/qaqc-app-192-v2.png",
           "sizes": "192x192",
           "type": "image/png"
         }

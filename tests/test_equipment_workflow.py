@@ -1,4 +1,5 @@
 import copy
+import json
 import sys
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -400,12 +401,34 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertIn(b"/static/js/login.js?v=2", page.data)
         self.assertIn(b"password-toggle.js", page.data)
         service_worker = client.get("/service-worker.js")
-        self.assertIn(b"quality-sims-v23", service_worker.data)
+        self.assertIn(b"quality-sims-v24", service_worker.data)
         self.assertIn(b"/static/css/styles.css?v=21", service_worker.data)
         self.assertIn(b"/static/js/login.js?v=2", service_worker.data)
+        self.assertIn(b"/static/js/pwa.js?v=2", service_worker.data)
+        self.assertIn(b"/static/manifest.webmanifest?v=2", service_worker.data)
+        self.assertIn(b"qaqc-app-maskable-512-v2.png", service_worker.data)
         self.assertIn(b"/static/js/password-toggle.js?v=2", service_worker.data)
         self.assertEqual(service_worker.headers.get("Cache-Control"), "no-cache")
         service_worker.close()
+
+        manifest_response = client.get("/static/manifest.webmanifest")
+        try:
+            manifest = json.loads(manifest_response.data)
+            self.assertEqual(manifest["id"], "/")
+            self.assertEqual(manifest["start_url"], "/?source=pwa")
+            self.assertFalse(manifest["prefer_related_applications"])
+            self.assertEqual(
+                [icon["sizes"] for icon in manifest["icons"]],
+                ["192x192", "512x512", "512x512"],
+            )
+            for icon in manifest["icons"]:
+                icon_response = client.get(icon["src"])
+                try:
+                    self.assertEqual(icon_response.status_code, 200)
+                finally:
+                    icon_response.close()
+        finally:
+            manifest_response.close()
 
     def test_public_forgot_password_sends_a_generic_reset_response(self):
         database = FakeFirestore()

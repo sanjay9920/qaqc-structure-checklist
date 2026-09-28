@@ -1,15 +1,15 @@
-const CACHE_NAME = "quality-sims-v23";
+const CACHE_NAME = "quality-sims-v24";
 const APP_SHELL = [
   "/static/offline.html",
   "/static/css/styles.css?v=21",
   "/static/js/login.js?v=2",
   "/static/js/password-toggle.js?v=2",
-  "/static/js/pwa.js",
+  "/static/js/pwa.js?v=2",
   "/static/js/scanner.js",
-  "/static/manifest.webmanifest",
-  "/static/icons/icon-192.png",
-  "/static/icons/icon-512.png",
-  "/static/icons/icon-maskable-512.png"
+  "/static/manifest.webmanifest?v=2",
+  "/static/icons/qaqc-app-192-v2.png",
+  "/static/icons/qaqc-app-512-v2.png",
+  "/static/icons/qaqc-app-maskable-512-v2.png"
 ];
 
 self.addEventListener("install", (event) => {
